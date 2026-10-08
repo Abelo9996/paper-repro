@@ -59,6 +59,7 @@ def test_mcp_stdio_roundtrip(good_repo, tmp_path):
             "write_report",
             "study_status",
             "verify_evidence",
+            "scan_paper",
         }
         res = rpc(
             proc,
@@ -71,6 +72,8 @@ def test_mcp_stdio_roundtrip(good_repo, tmp_path):
         )["result"]
         payload = json.loads(res["content"][0]["text"])
         assert payload["claims"][0]["id"] == "c1"
+        assert "create_env" in payload["next"]  # every result says what comes next
+        assert "prev" not in payload and "hash" not in payload  # no log internals
         res = rpc(
             proc,
             {

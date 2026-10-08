@@ -7,17 +7,21 @@ import json
 import sys
 from pathlib import Path
 
-from . import __version__
+from . import __version__, guide
 from .study import StudyError, resolve_study
 
 EPILOG = """\
-typical flow:
-  paper-repro inspect https://github.com/owner/repo
-  paper-repro env --python 3.11
-  paper-repro run -- python train.py --epochs 1
-  paper-repro metrics --run r1
+typical flow (each step prints what to do next):
+  paper-repro inspect https://github.com/owner/repo     clone it, list the numbers it claims
+  paper-repro paper                                     optional: numbers from the linked arXiv paper
+  paper-repro env                                       build an isolated env from its dependencies
+  paper-repro run --scope smoke -- python train.py --epochs 1
+  paper-repro run -- python train.py                    the configuration the claim refers to
+  paper-repro metrics                                   pull numbers out of the latest run
   paper-repro compare --claim c3 --measured m1:accuracy:last
-  paper-repro report
+  paper-repro report                                    write report.md with the verdict and evidence
+
+studies live in ./paper-repro-runs (or $PAPER_REPRO_HOME); later steps act on the last inspected repo.
 """
 
 
@@ -47,7 +51,7 @@ def cmd_inspect(args) -> int:
             f"gpu: {e['gpu']['summary']}",
             f"downloads referenced: {len(e['downloads'])}",
             "entry points: " + (", ".join(p["path"] for p in e["entry_points"][:8]) or "none"),
-            "README commands:",
+            "README commands:" + ("" if e["readme_commands"] else " none"),
         ]
         lines += [f"  {c['source']}: {c['command']}" for c in e["readme_commands"][:12]]
         lines.append(f"claimed numbers ({len(e['claims'])}):")
@@ -60,8 +64,12 @@ def cmd_inspect(args) -> int:
             )
         if len(e["claims"]) > 25:
             lines.append(f"  ... {len(e['claims']) - 25} more (use --json)")
+        for p in e.get("papers") or []:
+            lines.append(f"paper linked: arXiv:{p['arxiv']} ({p['source']})")
+        lines.append(f"next: {e['next']}")
         return "\n".join(lines)
 
+    e["next"] = guide.after_inspect(e)
     _p(args, e, human)
     return 0
 
@@ -98,8 +106,13 @@ def cmd_env(args) -> int:
         if e.get("failure"):
             lines.append(f"FAILED at {e['failure']['step']}: {e['failure']['command']}")
             lines.append(e["failure"]["error"])
+        for h in e.get("hints") or []:
+            if h != e["next"]:
+                lines.append(f"hint: {h}")
+        lines.append(f"next: {e['next']}")
         return "\n".join(lines)
 
+    e["next"] = guide.after_env(e)
     _p(args, e, human)
     return 0 if e["status"] == "ok" else 1
 
@@ -149,8 +162,10 @@ def cmd_run(args) -> int:
             lines += ["--- stdout (tail) ---", e["stdout"]["tail"]]
         if e["stderr"]["tail"]:
             lines += ["--- stderr (tail) ---", e["stderr"]["tail"]]
+        lines.append(f"next: {e['next']}")
         return "\n".join(lines)
 
+    e["next"] = guide.after_run(e)
     _p(args, e, human)
     return 0 if e["exit_code"] == 0 and not e["timed_out"] else 1
 
@@ -177,9 +192,10 @@ def cmd_metrics(args) -> int:
                     f"  {s['name']}: {s['count']} values, last {s['last']['value']} [{s['last']['id']}], "
                     f"min {s['min']['value']} [{s['min']['id']}], max {s['max']['value']} [{s['max']['id']}]"
                 )
-        lines.append(f"select with e.g. {e['id']}:<name>:last or an exact id like {e['id']}.1")
+        lines.append(f"next: {e['next']}")
         return "\n".join(lines)
 
+    e["next"] = guide.after_metrics(e)
     _p(args, e, human)
     return 0
 
@@ -211,6 +227,40 @@ def cmd_claim(args) -> int:
     return 0
 
 
+def cmd_paper(args) -> int:
+    from .paper import scan_paper
+
+    study = resolve_study(args.study, args.workspace)
+    e = scan_paper(study, args.source)
+    e["next"] = guide.after_paper(e)
+
+    def human(e) -> str:
+        p = e["paper"]
+        lines = [
+            f"paper: {p['label']} ({p['pages']} pages, {p['characters']} characters of text)",
+            f"file: {p['file']['path']} sha256 {p['file']['sha256'][:16]}",
+            f"text: {p['text_path']}",
+        ]
+        if p.get("warning"):
+            lines.append(f"warning: {p['warning']}")
+        lines.append(f"claimed numbers ({len(e['claims'])}):")
+        shown = e["claims"] if args.all else e["claims"][:40]
+        for c in shown:
+            val = c["value_text"] if c["value"] is not None else f"{c['lo_text']} to {c['hi_text']}"
+            pct = "%" if c["percent"] else ""
+            pm = f" ± {c['plus_minus']:g}" if c.get("plus_minus") else ""
+            cell = " | ".join(x for x in (c.get("row"), c.get("column")) if x)
+            cell = f" [{cell}]" if cell else ""
+            lines.append(f"  {c['id']}: {c['raw_metric']} = {val}{pm}{pct}{cell}  ({c['source']})")
+        if len(e["claims"]) > len(shown):
+            lines.append(f"  ... {len(e['claims']) - len(shown)} more (use --all or --json)")
+        lines.append(f"next: {e['next']}")
+        return "\n".join(lines)
+
+    _p(args, e, human)
+    return 0
+
+
 def cmd_compare(args) -> int:
     from .compare import compare_claim
 
@@ -232,12 +282,14 @@ def cmd_compare(args) -> int:
     def human(e) -> str:
         return "\n".join(
             [
-                f"{e['id']}: {e['verdict'].upper()}",
+                f"{e['id']}: {e['verdict'].replace('_', ' ').upper()}",
                 e["headline"],
                 *[f"  - {r}" for r in e["reasoning"]],
+                f"next: {e['next']}",
             ]
         )
 
+    e["next"] = guide.after_compare(e)
     _p(args, e, human)
     return 0
 
@@ -262,6 +314,8 @@ def cmd_report(args) -> int:
         if o.get("bundle"):
             lines.append(f"bundle: {o['bundle']}")
         return "\n".join(lines)
+
+    out["next"] = guide.after_report(study)
 
     _p(args, out, human)
     return 0
@@ -330,6 +384,11 @@ def cmd_setup(args) -> int:
         state = "will do" if a["needed"] else a.get("result", "nothing to do")
         lines.append(f"  [{a['agent']}] {a['action']}: {a['target']} ({state})")
     if not any(a["needed"] for a in plan["actions"]):
+        if not any(plan["detected"].values()):
+            lines.append(
+                "No agent found (looked for the claude CLI or ~/.claude, ~/.codex, ~/.cursor). "
+                "Register the server by hand: `uvx paper-repro mcp` over stdio."
+            )
         _p(args, plan, lambda _: "\n".join([*lines, "Nothing to change."]))
         return 0
     apply = args.yes
@@ -347,8 +406,17 @@ def cmd_setup(args) -> int:
             out.append(f"  [{a['agent']}] {a['action']}: ERROR {a['error']}")
         elif a.get("result"):
             out.append(f"  [{a['agent']}] {a['action']}: {a['result']}")
-    _p(args, done, lambda _: "\n".join([*lines, *out]))
-    return 0
+    done["next"] = SETUP_NEXT
+    _p(args, done, lambda _: "\n".join([*lines, *out, "", SETUP_NEXT]))
+    return 0 if not any(a.get("error") for a in done["actions"]) else 1
+
+
+SETUP_NEXT = (
+    "Done. Start a new agent session (restart Claude Code, Codex or Cursor so it loads the "
+    "server), then ask, for example:\n"
+    '  "Does github.com/karpathy/nanoGPT reproduce the loss of 1.88 its README claims for the '
+    'CPU run?"'
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -441,6 +509,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     s.add_argument("--name", action="append", help="only keep these metric names (repeatable)")
     s.set_defaults(func=cmd_metrics)
+
+    s = sub.add_parser(
+        "paper",
+        parents=[common],
+        help="find the numbers the paper claims (arXiv PDF or a local PDF or text file)",
+        description="Download the paper from arXiv (or read a local PDF or text file), save its "
+        "text, and record the numbers it claims as p1, p2, ... Results tables are read "
+        "heuristically and marked low confidence: check the quoted row before using one.",
+    )
+    s.add_argument(
+        "source",
+        nargs="?",
+        help="arXiv id or URL, or a local PDF/text path (default: the arXiv paper the README links)",
+    )
+    s.add_argument("--all", action="store_true", help="list every claim, not the first 40")
+    s.set_defaults(func=cmd_paper)
 
     s = sub.add_parser("claim", parents=[common], help="record a claim the README scan missed")
     s.add_argument("--metric", required=True)

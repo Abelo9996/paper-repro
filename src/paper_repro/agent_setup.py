@@ -126,7 +126,7 @@ def build_plan(
                 r = run_capture(cmd, timeout=60, env=_env_with_home(home))
                 if r["exit_code"] != 0:
                     raise RuntimeError(f"`{' '.join(cmd)}` failed: {r['stderr'].strip()}")
-                return f"ran: {' '.join(cmd[1:])}"
+                return f"ran: claude {' '.join(cmd[1:])}"
 
             plan.actions.append(
                 Action(

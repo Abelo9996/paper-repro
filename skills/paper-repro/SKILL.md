@@ -1,6 +1,6 @@
 ---
 name: paper-repro
-description: Check whether a paper's released code reproduces a number it claims. Use when asked to reproduce, verify, sanity-check or "get running" a paper's GitHub repo, or to find out whether a README's reported accuracy, loss, F1 or similar holds up. Produces a verdict (reproduced, close, not reproduced, could not run) with an evidence bundle.
+description: Check whether a paper's released code reproduces a number it claims. Use when asked to reproduce, verify, sanity-check or "get running" a paper's GitHub repo, or to find out whether a README's reported accuracy, loss, F1 or similar holds up. Also use when the user names a paper (arXiv id or PDF) and its code. Produces a verdict (reproduced, close, not reproduced, inconclusive, could not run) with an evidence bundle.
 ---
 
 # Reproducing a paper's number with paper-repro
@@ -9,9 +9,11 @@ You drive; paper-repro records. It never decides what to run and never calls a m
 is to get the authors' code to produce the number they claim, under their configuration, and
 to report what happened, including when it did not work.
 
-Use the MCP tools (`inspect_repo`, `create_env`, `run_command`, `extract_metrics`,
-`compare_claim`, `add_note`, `write_report`) or the CLI (`paper-repro <subcommand> --json`).
-They are the same operations.
+Use the MCP tools (`inspect_repo`, `scan_paper`, `create_env`, `run_command`,
+`extract_metrics`, `compare_claim`, `add_claim`, `add_note`, `write_report`) or the CLI
+(`paper-repro <subcommand> --json`). They are the same operations. Every result carries a
+`next` field (a `next:` line in the CLI) with the usual next step; read it, but your judgment
+about the claim and the method comes first.
 
 ## Workflow
 
@@ -21,8 +23,13 @@ They are the same operations.
 
 2. **Pick the claim.** Choose one headline number the user cares about, ideally one the README
    ties to a specific configuration and command. Say which claim id you picked and why. If the
-   number you need is only in the paper, record it with `add_claim` and give its source
-   (for example "paper Table 2, row GAT, Cora").
+   number is only in the paper, call `scan_paper()` (it reads the arXiv paper the README links,
+   or pass an arXiv id or a PDF path). Its claims (`p1`, `p2`, ...) carry page, table row and
+   column, and table rows are low confidence: check the quoted `text`, or read the saved
+   `paper/*.txt`, before using one. If the number is missing or misread, record it with
+   `add_claim` and give its source (for example "arXiv:1609.02907 Table 2, row GCN, Cora").
+   Also read what the README says about the code's relation to the paper (a re-implementation
+   that "is not intended for reproduction" changes what a mismatch means; say so).
 
 3. **Check feasibility before spending time.** Hardware (GPU-only code on a CPU machine),
    dataset size, licensed or gated data, and the run time the README states. If the full run
@@ -50,7 +57,9 @@ They are the same operations.
 
 8. **Compare.** `compare_claim(claim_id, measured=[...], tol=..., why=...)`. Choose a tolerance
    you can defend (the authors' reported std, the eval noise, the rounding of the stated
-   value) and give the reason in `why`. Defaults: 1% relative, close band 3x that.
+   value) and give the reason in `why`. Defaults: 1% relative, close band 3x that. Any value
+   from a smoke or shortened run gives **inconclusive**: that is the honest verdict, not a
+   failure to fix by relabeling the run.
 
 9. **Report.** `write_report()`. Give the user the verdict line, the numbers, the path to
    `report.md`, and the main caveats from "What was not checked".
@@ -67,8 +76,9 @@ They are the same operations.
   and write the report. "Could not run" with the blocking error is a useful result.
 - **A shortened run never reproduces the full claim.** The tool marks it; do not describe it
   as a reproduction in your summary either.
-- **One verdict per claim.** Do not shop for a favorable metric after seeing the results; if
-  you compare several claims, the report lists all of them.
+- **One verdict per claim.** Do not shop for a favorable metric after seeing the results.
+  Comparing a claim again (for example after the full run finishes) replaces the earlier
+  verdict, and the report still lists the earlier one as superseded.
 - Record anything you did not verify (checksums of downloaded data, GPU code paths, other
   claims) with `add_note(kind="not_checked")`.
 - Long runs: `run_command` blocks until the command finishes or `timeout_seconds` passes. For
