@@ -85,3 +85,24 @@ def test_interrupted_run_directory_is_never_reused(study):
     e = run_command(study, "echo hi", use_env=False)
     assert e["id"] == "r2"
     assert (study.runs_dir / "r1" / "stdout.txt").read_text().startswith("from a run")
+
+
+def test_parallel_runs_get_distinct_ids_and_keep_the_chain(study):
+    """Agents sometimes call run_command several times at once."""
+    import threading
+
+    results = []
+
+    def go(i):
+        results.append(run_command(study, f"sleep 0.5; echo run {i}", use_env=False))
+
+    threads = [threading.Thread(target=go, args=(i,)) for i in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    ids = sorted(r["id"] for r in results)
+    assert ids == ["r1", "r2", "r3", "r4"]
+    assert study.verify()["ok"]
+    assert any(r["overlapped_with"] for r in results)
+    assert not list(study.runs_dir.glob("*/RUNNING"))

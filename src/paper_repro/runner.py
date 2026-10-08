@@ -123,12 +123,21 @@ def run_command(
         raise StudyError(
             "A shortened run needs --note saying what was shortened (epochs, data, steps)."
         )
-    rid = study.next_id("r", "run")
-    while (study.runs_dir / rid).exists():
-        # a directory left by a run that was interrupted before it was recorded; never reuse it
-        rid = f"r{int(rid[1:]) + 1}"
+    with study.lock():
+        rid = study.next_id("r", "run")
+        study.runs_dir.mkdir(parents=True, exist_ok=True)
+        while True:
+            # Skip directories left by interrupted runs and by runs still in progress.
+            try:
+                (study.runs_dir / rid).mkdir()
+                break
+            except FileExistsError:
+                rid = f"r{int(rid[1:]) + 1}"
+        overlapping = sorted(
+            p.parent.name for p in study.runs_dir.glob("*/RUNNING") if p.parent.name != rid
+        )
+        (study.runs_dir / rid / "RUNNING").touch()
     run_dir = study.runs_dir / rid
-    run_dir.mkdir(parents=True, exist_ok=True)
     out_path, err_path = run_dir / "stdout.txt", run_dir / "stderr.txt"
 
     child_env = dict(os.environ)
@@ -279,6 +288,11 @@ def run_command(
     except Exception as exc:  # noqa: BLE001
         recording_error = f"{type(exc).__name__}: {exc}"
 
+    overlapping = sorted(
+        set(overlapping)
+        | {p.parent.name for p in study.runs_dir.glob("*/RUNNING") if p.parent.name != rid}
+    )
+    (run_dir / "RUNNING").unlink(missing_ok=True)
     stdout_text = out_path.read_text(encoding="utf-8", errors="replace")
     stderr_text = err_path.read_text(encoding="utf-8", errors="replace")
     rel_out = str(out_path.relative_to(study.root))
@@ -289,6 +303,7 @@ def run_command(
             "id": rid,
             "command": command,
             "cwd": "repo",
+            "overlapped_with": overlapping,
             "env_used": env_used,
             "env_overrides": overrides,
             "seed": seed,

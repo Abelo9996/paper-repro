@@ -16,17 +16,29 @@ report can never say something the log does not.
 
 from __future__ import annotations
 
+import contextlib
+import functools
 import json
 import os
 import re
+import threading
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .util import now_iso, sha256_bytes
 
+try:
+    import fcntl
+except ImportError:  # Windows: only threads in one process are serialized
+    fcntl = None  # type: ignore[assignment]
+
 GENESIS = "0" * 64
 CURRENT_FILE = "CURRENT"
+_held = threading.local()
+_thread_locks: dict[str, threading.Lock] = {}
+_thread_locks_guard = threading.Lock()
 
 
 class StudyError(Exception):
@@ -75,6 +87,32 @@ class Study:
     def env_bin(self) -> Path:
         return self.env_dir / ("Scripts" if os.name == "nt" else "bin")
 
+    # ------------------------------------------------------------------ lock
+
+    @contextlib.contextmanager
+    def lock(self) -> Iterator[None]:
+        """Serialize writers of this study across threads and processes (an agent may call
+        several tools at once). Re-entrant within one thread."""
+        key = str(self.root)
+        held: set[str] = getattr(_held, "keys", None) or set()
+        _held.keys = held
+        if key in held:
+            yield
+            return
+        with _thread_locks_guard:
+            tlock = _thread_locks.setdefault(key, threading.Lock())
+        self.root.mkdir(parents=True, exist_ok=True)
+        with tlock, (self.root / ".lock").open("a+") as fh:
+            if fcntl:
+                fcntl.flock(fh, fcntl.LOCK_EX)
+            held.add(key)
+            try:
+                yield
+            finally:
+                held.discard(key)
+                if fcntl:
+                    fcntl.flock(fh, fcntl.LOCK_UN)
+
     # ------------------------------------------------------------------ log
 
     def entries(self) -> list[dict]:
@@ -89,7 +127,10 @@ class Study:
         return out
 
     def append(self, kind: str, payload: dict[str, Any]) -> dict:
-        self.root.mkdir(parents=True, exist_ok=True)
+        with self.lock():
+            return self._append(kind, payload)
+
+    def _append(self, kind: str, payload: dict[str, Any]) -> dict:
         prior = self.entries()
         entry = {
             "seq": len(prior) + 1,
@@ -115,11 +156,13 @@ class Study:
             "study": str(self.root),
             "inspect": None,
             "envs": [],
+            "active_env": None,
             "runs": {},
             "metrics": {},
             "claims": {},
             "comparisons": [],
             "notes": [],
+            "papers": [],
         }
         for e in self.entries():
             k = e["kind"]
@@ -129,12 +172,20 @@ class Study:
                     st["claims"][c["id"]] = c
             elif k == "env":
                 st["envs"].append(e)
+                if e["status"] == "ok":
+                    st["active_env"] = e
+                elif not e.get("restored_env"):
+                    st["active_env"] = None
             elif k == "run":
                 st["runs"][e["id"]] = e
             elif k == "metrics":
                 st["metrics"][e["id"]] = e
             elif k == "claim":
                 st["claims"][e["claim"]["id"]] = e["claim"]
+            elif k == "paper":
+                st["papers"].append(e)
+                for c in e.get("claims", []):
+                    st["claims"][c["id"]] = c
             elif k == "compare":
                 st["comparisons"].append(e)
             elif k == "note":
@@ -177,6 +228,17 @@ class Study:
             "head": prev if entries else None,
             "problems": problems,
         }
+
+
+def locked(fn):
+    """Run a study operation while holding the study's lock (first argument is the Study)."""
+
+    @functools.wraps(fn)
+    def wrapper(study: Study, *args, **kwargs):
+        with study.lock():
+            return fn(study, *args, **kwargs)
+
+    return wrapper
 
 
 def slug_for(source: str) -> str:
