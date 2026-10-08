@@ -8,8 +8,9 @@ uvx paper-repro setup --yes        # register the MCP server and skill with Clau
 uvx paper-repro inspect https://github.com/karpathy/nanoGPT   # or drive it yourself from the CLI
 ```
 
-Papers with Code went offline on 24 July 2025, taking its 79,817 paper-to-code links with it. Nobody tracks whether that code actually reproduces the numbers in the
-paper. Research benchmarks for this exist (CORE-Bench, PaperBench), but they score agents,
+Papers with Code went offline on 24 July 2025, taking its 79,817 paper-to-code links with it
+([shutdown record](https://www.codesota.com/papers-with-code/shutdown)). There's no common place
+that tracks whether a paper's released code actually reproduces the numbers in the paper. Research benchmarks for this exist (CORE-Bench, PaperBench), but they score agents,
 not papers. paper-repro is the user-facing half: it gives a coding agent reliable operations to
 clone a repo, build its environment, run it, pull numbers out of the logs and compare them with
 the claim, and it writes everything down so a person can check the verdict without trusting
