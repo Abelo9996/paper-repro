@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.1.2
+
+Results tables in paper PDFs are now read from word positions instead of plain text.
+
+- `paper` / `scan_paper` rebuild each table from word boxes (new dependency: `pdfminer.six`).
+  Columns are placed by the x-position of the numbers and named from every header line above
+  them, so two-level headers work: the Transformer paper's Table 2 now gives
+  `[Transformer (big) | BLEU EN-DE] 28.4`, where 0.1.1 gave no column name.
+- Captions below their table and tables stacked on one page are handled. In 0.1.1 the ResNet
+  paper's Table 4 values were reported as Table 3.
+- Section rows (`Ours`, `Published`), blank cells that repeat the label above, labels centered
+  on several rows, drawn column rules, `±` spreads after a `%`, `a/b` cells and a citation
+  column next to its number (ELMo's "Previous SOTA") are read.
+- Setup columns (depth, params, cost, `N`, `d_model`) are no longer reported as results; they
+  name rows that would otherwise repeat, as in `DenseNet (k = 12) (Depth 40)`.
+- Every table claim carries `table`, `page`, the exact `row` and `column` labels, `row_group`,
+  and a `confidence` (high, medium, low) with `confidence_score` and `confidence_notes`. The CLI
+  prints the table and confidence; `compare` and the report quote the table cell.
+- `top-1 err.` columns are named `top_1_error` (lower is better). 0.1.1 named them
+  `top1_accuracy`, which would have judged lower error as worse.
+- The rebuilt tables are saved to `paper/<name>.tables.md` for checking a claim against its
+  table. MCP claims no longer repeat the caption in every `text`.
+- If pdfminer cannot read a file, the old text reader is used and the paper record says so.
+- Regression set: 13 tables from 8 arXiv papers with hand-transcribed cells, word-box fixtures
+  for offline tests, and `scripts/table_regression.py` to score either reader. Precision on the
+  9 dev tables went from 0.64 (0.1.1) to 1.00; on 4 held-out tables the first run scored 0.33
+  and, after fixes, 0.99. The README explains why neither 1.00 nor 0.99 is a promise for new
+  papers.
+
 ## 0.1.1
 
 Fixes from a fresh-install audit and two real headless Claude Code sessions.

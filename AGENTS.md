@@ -10,7 +10,8 @@ src/paper_repro/
   study.py         Study directory, append-only hash-chained evidence.jsonl, state replay
   inspect_repo.py  clone/copy, dependency and entry-point detection, README scan
   claims.py        claimed numbers from Markdown (tables, sentences, ranges, ±)
-  paper.py         claimed numbers from the paper (arXiv PDF or local file, pypdf, heuristic tables)
+  paper.py         claimed numbers from the paper (arXiv PDF or local file, pypdf text)
+  pdf_tables.py    results tables rebuilt from word positions (pdfminer.six), confidence per cell
   guide.py         the `next` step after each operation (CLI `next:` line, MCP `next` field)
   metrics.py       metric values from logs, JSON, CSV; selectors (m1:acc:last@each)
   envs.py          uv venv + installs, conda translation, unpin, lock.txt

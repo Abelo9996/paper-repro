@@ -120,7 +120,7 @@ Cursor) decides what to run; paper-repro does it the same way every time and kee
 | Step | What it does | Tools it drives |
 |---|---|---|
 | `inspect` | Shallow-clones the repo (or copies a local path), records the commit SHA, finds dependency files, Python version hints, README commands and `pip install` lines, entry points and their flags, data and weight downloads, GPU hints, and every number the README claims (table cells, sentences, ranges, `±` values), each with file and line. | `git` |
-| `paper` | Downloads the paper from arXiv (the one the README links, or any id, URL or local PDF/text file), saves its text, and records the numbers it states as `p1`, `p2`, ... with page, table row and column. Results tables are read heuristically from PDF text and marked low confidence; every claim keeps the quoted row so you can check it. | `pypdf` |
+| `paper` | Downloads the paper from arXiv (the one the README links, or any id, URL or local PDF/text file), saves its text, and records the numbers it states as `p1`, `p2`, ... Results tables are rebuilt from word positions: each cell keeps its table, page, exact row and column labels (a two-level header becomes `BLEU EN-DE`) and a confidence with notes. The rebuilt tables are saved as Markdown next to the text. | `pypdf` (text), `pdfminer.six` (word positions) |
 | `env` | Creates an isolated virtualenv per study and installs the repo's own dependency file with pins as written. Conda `environment.yml` files are translated to pip. `--unpin`, `--extra`, `--from-readme` and a different Python are allowed but recorded as deviations. Writes `lock.txt` from `uv pip freeze`. On failure, records the exact error. | `uv venv`, `uv pip` |
 | `run` | Runs one shell command from the repo root inside that env. Captures stdout and stderr to files with SHA-256, exit code, wall time, CPU time, peak memory, every file created or modified, and a copy of small result files as they were when the run ended. Timeout kills the whole process tree. Each run is labeled `full`, `shortened` (needs a note saying what was cut), `smoke` or `setup`. | your shell, POSIX rlimits |
 | `metrics` | Extracts values like `accuracy: 0.913`, `acc=91.3%`, `F1 81.2`, `val loss 1.8857`, `Accuracy: 9897/10000`, plus JSON, JSON lines and CSV results, each with its source file, line and text. Select one with `m1:val_loss:last`, or one per run with `m1:val_loss:last@each`. | |
@@ -172,24 +172,60 @@ Result: test accuracy 84.2, 84.7 and 84.2 over three seeds, mean 84.37, inside t
 verdict reproduced. Both failed environment attempts, the Python and unpinning deviations, and
 the fact that only 3 of the authors' 5 runs were repeated are all in the report.
 
-When the number is only in the paper, `paper-repro paper` reads it (real output, trimmed):
+When the number is only in the paper, `paper-repro paper` reads it. Real output (0.1.2, trimmed)
+for the Transformer paper, whose Table 2 has a two-line header (`BLEU` over `EN-DE  EN-FR`):
 
 ```text
-$ paper-repro inspect tkipf/pygcn
-...
-claimed numbers (0):
-paper linked: arXiv:1609.02907 (README.md:31)
-$ paper-repro paper
-paper: arXiv:1609.02907 (14 pages, 43459 characters of text)
-file: paper/arxiv-1609.02907.pdf sha256 a654f884db04a317
-text: paper/arxiv-1609.02907.txt
-claimed numbers (32):
-  p1: accuracy = 60.1% [ManiReg | Citeseer]  (arXiv:1609.02907, page 7)
+$ paper-repro paper 1706.03762
+paper: arXiv:1706.03762 (15 pages, 39496 characters of text)
+file: paper/arxiv-1706.03762.pdf sha256 bdfaa68d8984f0dc
+text: paper/arxiv-1706.03762.txt
+tables: paper/arxiv-1706.03762.tables.md (3 rebuilt)
+claimed numbers (69):
+  p1: BLEU = 23.75 [ByteNet | BLEU EN-DE]  (arXiv:1706.03762, page 8, Table 2, high)
   ...
-  p26: accuracy = 81.5% [GCN (this paper) | Cora]  (arXiv:1609.02907, page 7)
+  p16: BLEU = 28.4 [Transformer (big) | BLEU EN-DE]  (arXiv:1706.03762, page 8, Table 2, high)
+  p17: BLEU = 41.8 [Transformer (big) | BLEU EN-FR]  (arXiv:1706.03762, page 8, Table 2, high)
+  p18: PPL = 4.92 [base | PPL (dev)]  (arXiv:1706.03762, page 9, Table 3, high)
   ...
-  p30: accuracy = 80.1 ± 0.5% [GCN (rand. splits) | Cora]  (arXiv:1609.02907, page 7)
 ```
+
+The training-cost columns of that table are not listed (they are not results), and in 0.1.1 the
+same cells came out with no column name at all.
+
+### Reading tables from PDFs
+
+pypdf's plain text loses the layout, so `paper` rebuilds each results table from word boxes
+(pdfminer.six): it finds the `Table N` caption, takes the tabular lines above or below it within
+its page column, places columns by the x-position of the numbers, and names each column from
+every header line above it. It handles captions below the table, stacked tables, two-level
+headers, section rows ("Ours", "Published"), blank cells that repeat the label above,
+`\multirow` labels, `±` spreads, `a/b` cells and drawn column rules. Columns that describe the
+setup (depth, params, cost) are not claims; they name rows that would otherwise repeat, as in
+`DenseNet (k = 12) (Depth 40)`.
+
+Each claim gets a confidence score from 0 to 1 (high, medium or low) with notes saying what
+lowered it, for example "metric named only in the caption" or "row label taken from a
+neighbouring row".
+
+Measured on a regression set of 13 tables from 8 arXiv papers, with every expected cell
+transcribed by hand from the rendered pages (`tests/data/tables/expected.json`, scored with
+`scripts/table_regression.py`). A claim is correct only when its table, row label, column label
+and value all match.
+
+| Reader | Tables | Precision | Recall |
+|---|---|---|---|
+| 0.1.1 (plain text) | 9 dev tables, 212 cells | 76/119 = 0.64 | 76/212 = 0.36 |
+| 0.1.2 (word positions) | the same 9 dev tables | 212/212 = 1.00 | 212/212 = 1.00 |
+| 0.1.1 (plain text) | 4 held-out tables, 151 cells | 0/2 | 0/151 |
+| 0.1.2, first run on held-out | the same 4 tables | 47/141 = 0.33 | 47/151 = 0.31 |
+| 0.1.2, after fixing what they showed | the same 4 tables | 150/152 = 0.99 | 150/151 = 0.99 |
+
+The dev tables (Transformer, GCN, GAT, BERT, ResNet) were used while building the reader, so
+1.00 there is not an estimate of accuracy on new papers. The held-out tables (ViT, DenseNet,
+ELMo) were transcribed before the reader first saw them; the 0.33 is that first, honest number,
+and the reader was then fixed against them, so they are no longer held out either. Expect
+unseen papers to land somewhere in between, and check medium and low claims.
 
 Every subcommand takes `--json`. `paper-repro status` shows what a study has recorded so far.
 
@@ -232,11 +268,14 @@ error instead of pushing through.
 - Conda environments are translated to pip, which can resolve different builds than conda
   would. The translation is recorded as a deviation.
 - Claim detection in the README is reliable for tables and plain sentences. Reading the paper
-  (`paper-repro paper`) works on text PDFs and is heuristic for tables: columns are matched by
-  position, multi-line headers and merged cells can shift them, and scanned PDFs yield no text.
-  Every paper claim shows the quoted row; when one is wrong or missing, add it with
-  `paper-repro claim --source "paper Table 2"`. Only arXiv is fetched automatically; for other
-  papers pass a local PDF.
+  (`paper-repro paper`) needs a text PDF: scanned pages and tables embedded as images yield
+  nothing. Tables need a `Table N:` or `Table N.` caption; rotated tables, tables split over two
+  pages and tables whose row labels wrap onto a second line are not handled, and when a cell
+  holds two values (`88.4/88.5`) only a header like `MNLI-(m/mm)` or an `a / b` phrase in the
+  caption names them. Sentences in the paper are only read for `metric: value` style claims, so
+  "a BLEU score of 28.4" in prose is not picked up; the table is. When a claim is wrong or
+  missing, add it with `paper-repro claim --source "paper Table 2"`. Only arXiv is fetched
+  automatically; for other papers pass a local PDF.
 - Metric extraction is pattern-based. Unusual log formats may need `--file` on a results file or
   a careful choice among the extracted values; the report always shows the exact source line.
 - Memory limits are only enforced on Linux; on macOS peak memory is recorded but not capped.
