@@ -209,7 +209,7 @@ def _claim(
     pct: bool,
     pm: str | None,
     source: str,
-    line: int,
+    line: int | None,
     text: str,
     kind: str,
     lo: str | None = None,

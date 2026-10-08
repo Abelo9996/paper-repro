@@ -168,7 +168,11 @@ def acquire(source: str, dest: Path, ref: str | None = None) -> dict:
         info["clone"] = {k: r[k] for k in ("argv", "exit_code", "wall_seconds")}
         if r["exit_code"] != 0:
             shutil.rmtree(dest, ignore_errors=True)
-            raise StudyError(f"git clone failed for {url}:\n{r['stderr'].strip()}")
+            raise StudyError(
+                f"git clone failed for {url}:\n{r['stderr'].strip()}\n"
+                "Check the URL or owner/repo spelling (private repos need git credentials), "
+                "or pass a local path to a checkout."
+            )
     git_dir = dest / ".git"
     if git_dir.exists():
         sha = run_capture(["git", "rev-parse", "HEAD"], cwd=dest, timeout=30)
@@ -335,13 +339,20 @@ def inspect_repo(
     study = Study(root)
     if study.log_path.exists() and any(e["kind"] == "inspect" for e in study.entries()):
         prior = study.state()["inspect"]
-        if prior.get("repo", {}).get("source") != source:
+        prior_source = prior.get("repo", {}).get("source") or ""
+        if prior_source != source and slug_for(prior_source) != slug_for(source):
             raise StudyError(
-                f"{root} already holds a study of {prior['repo'].get('source')}. "
-                "Pass --name to start a separate study."
+                f"{root} already holds a study of {prior_source}. Pass --name (MCP: name) to "
+                "start a separate study for this repo."
             )
+    fresh = not root.exists()
     root.mkdir(parents=True, exist_ok=True)
-    repo_info = acquire(source, study.repo, ref)
+    try:
+        repo_info = acquire(source, study.repo, ref)
+    except BaseException:
+        if fresh:
+            shutil.rmtree(root, ignore_errors=True)
+        raise
     report = scan(study.repo)
     if not study_dir:
         set_current(ws, root)
@@ -486,6 +497,13 @@ def scan(repo: Path) -> dict:
     gpu["readme"] = gpu["readme"][:20]
 
     hints = _python_hints(deps, readmes)
+    from .paper import find_paper_links
+
+    papers: list[dict[str, str]] = []
+    for path, text in readmes:
+        for link in find_paper_links(text, path):
+            if all(p["arxiv"] != link["arxiv"] for p in papers):
+                papers.append(link)
     return {
         "size": {"files": len(files), "bytes": total, "truncated": len(files) >= MAX_FILES},
         "languages": [{"language": k, "bytes": v} for k, v in languages],
@@ -501,4 +519,5 @@ def scan(repo: Path) -> dict:
         "downloads": downloads[:60],
         "gpu": gpu,
         "claims": claims[:300],
+        "papers": papers[:10],
     }
