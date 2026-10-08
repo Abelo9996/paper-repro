@@ -137,7 +137,9 @@ def create_env(
     suggested = insp.get("suggested_python") or {}
     if not python:
         python = suggested.get("version") or "3.11"
-    elif suggested.get("reason", "").startswith("From ") and not python.startswith(suggested["version"]):
+    elif suggested.get("reason", "").startswith("From ") and not python.startswith(
+        suggested["version"]
+    ):
         deviations.append(
             f"Python {python} used; the repo asks for {suggested['version']} "
             f"({suggested['reason'].split(' (')[0].removeprefix('From ')})."

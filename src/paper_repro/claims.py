@@ -137,7 +137,7 @@ def extract_claims(text: str, source: str) -> list[dict[str, Any]]:
                     pm=None,
                     source=source,
                     line=idx + 1,
-                    text=line,
+                    text=_snippet(line, m.start(), m.end()),
                     kind="code" if in_code else "prose",
                     lo=m.group("lo"),
                     hi=m.group("hi"),
@@ -155,7 +155,7 @@ def extract_claims(text: str, source: str) -> list[dict[str, Any]]:
                     pm=m.group("pm"),
                     source=source,
                     line=idx + 1,
-                    text=line,
+                    text=_snippet(line, m.start(), m.end()),
                     kind="code" if in_code else "prose",
                 )
             )
@@ -175,12 +175,27 @@ def extract_claims(text: str, source: str) -> list[dict[str, Any]]:
                     pm=None,
                     source=source,
                     line=idx + 1,
-                    text=line,
+                    text=_snippet(line, m.start(), m.end()),
                     kind="code" if in_code else "prose",
                 )
             )
     claims.sort(key=lambda c: (c["line"], c["kind"] != "table"))
     return claims
+
+
+def _snippet(line: str, start: int, end: int, reach: int = 160) -> str:
+    """The sentence around a match, so a claim buried in a long paragraph stays readable."""
+    if len(line) <= 300:
+        return line
+    left = max(line.rfind(". ", 0, start), line.rfind("? ", 0, start), line.rfind("! ", 0, start))
+    left = left + 2 if left >= 0 and start - left <= reach else max(0, start - reach)
+    right_candidates = [i for i in (line.find(". ", end), line.find("? ", end)) if i >= 0]
+    right = min(right_candidates) + 1 if right_candidates else len(line)
+    if right - end > reach:
+        right = end + reach
+    text = line[left:right].strip()
+    tail = "..." if right < len(line) and not text.endswith((".", "?", "!")) else ""
+    return ("..." if left > 0 else "") + text + tail
 
 
 def _clean_keep_pm(cell: str) -> str:

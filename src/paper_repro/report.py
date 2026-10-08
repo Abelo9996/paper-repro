@@ -107,8 +107,8 @@ def _not_checked(st: dict) -> list[str]:
     if gpu.get("code") or gpu.get("readme"):
         host = (st["envs"][-1].get("host") if st["envs"] else None) or host_info()
         items.append(
-            f"The repo mentions GPUs or CUDA ({gpu.get('summary', '')}); this run was on "
-            f"{host.get('os')} {host.get('machine')}"
+            f"The repo mentions GPUs or CUDA ({gpu.get('summary', '').rstrip('.')}); this run was on "
+            f"{ {'Darwin': 'macOS'}.get(host.get('os') or '', host.get('os')) } {host.get('machine')}"
             + (f" ({host['cpu']})" if host.get("cpu") else "")
             + ". Numerical results can differ across hardware and kernels."
         )
@@ -142,7 +142,7 @@ def build_report(study: Study) -> dict:
     for e in st["envs"]:
         deviations.extend(f"[{e['id']}] {d}" for d in e.get("deviations", []))
     for r in runs:
-        if r["scope"] in ("shortened", "smoke") and r.get("note"):
+        if r["scope"] == "shortened" and r.get("note"):
             deviations.append(f"[{r['id']}] {r['scope']} run: {r['note']}")
     deviations.extend(n["text"] for n in st["notes"] if n["note_kind"] == "deviation")
     verify = study.verify()

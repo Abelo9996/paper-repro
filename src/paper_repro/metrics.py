@@ -235,11 +235,7 @@ def extract_metrics(
         values.extend(found)
     if names:
         wanted = {normalize_metric(n) for n in names}
-        values = [
-            v
-            for v in values
-            if v["name"] in wanted or any(v["name"].endswith("_" + w) for w in wanted)
-        ]
+        values = [v for v in values if v["name"] in wanted]
     truncated = len(values) > MAX_VALUES_PER_EXTRACTION
     values = values[:MAX_VALUES_PER_EXTRACTION]
     mid = study.next_id("m", "metrics")

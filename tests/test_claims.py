@@ -47,4 +47,15 @@ def test_line_numbers_point_at_source():
     cs = extract_claims(README, "README.md")
     lines = README.splitlines()
     for c in cs:
-        assert c["text"] == lines[c["line"] - 1].strip()[:400]
+        assert c["text"].strip(".") in lines[c["line"] - 1]
+
+
+def test_long_paragraph_is_trimmed_to_the_sentence():
+    para = (
+        ("Filler sentence number one is here. " * 20)
+        + "This gets us a loss of only 1.88 and worse samples. "
+        + ("More filler text follows. " * 20)
+    )
+    (c,) = extract_claims(para, "README.md")
+    assert c["value"] == 1.88
+    assert c["text"] == "...This gets us a loss of only 1.88 and worse samples."
