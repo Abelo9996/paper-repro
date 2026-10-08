@@ -10,7 +10,7 @@ from typing import Any
 
 import yaml
 
-from .study import Study, StudyError
+from .study import Study, StudyError, locked
 from .util import host_info, run_capture, sha256_file, tail, which
 
 # Conda packages that have no pip equivalent or are part of the interpreter/toolchain.
@@ -111,6 +111,7 @@ def _has_requirements(path: Path) -> bool:
     return False
 
 
+@locked
 def create_env(
     study: Study,
     *,
@@ -145,8 +146,21 @@ def create_env(
             f"({suggested['reason'].split(' (')[0].removeprefix('From ')})."
         )
 
+    # Keep a working env aside while trying a new one, so a failed attempt does not leave the
+    # study without an environment. It is restored if this attempt fails.
+    backup = study.root / "env.prev"
+    lock_backup = study.root / "lock.txt.prev"
+    active = st.get("active_env")
+    if backup.exists():
+        shutil.rmtree(backup)
+    lock_backup.unlink(missing_ok=True)
     if study.env_dir.exists() and (recreate or st["envs"]):
-        shutil.rmtree(study.env_dir)
+        if active and not recreate:
+            study.env_dir.rename(backup)
+            if (study.root / "lock.txt").exists():
+                shutil.copy2(study.root / "lock.txt", lock_backup)
+        else:
+            shutil.rmtree(study.env_dir)
     plan.append(("create venv", [uv, "venv", "--quiet", "--python", python, str(study.env_dir)]))
     py = str(study.env_python())
     install = [uv, "pip", "install", "--python", py]
@@ -272,9 +286,21 @@ def create_env(
             }
             break
 
+    restored = None
+    if status != "ok" and backup.exists():
+        if study.env_dir.exists():
+            shutil.rmtree(study.env_dir)
+        backup.rename(study.env_dir)
+        if lock_backup.exists():
+            lock_backup.replace(study.root / "lock.txt")
+        restored = active["id"]
+    elif backup.exists():
+        shutil.rmtree(backup)
+        lock_backup.unlink(missing_ok=True)
+
     lock = None
     versions: dict[str, Any] = {}
-    if Path(py).exists():
+    if Path(py).exists() and not restored:
         r = run_capture([uv, "pip", "freeze", "--python", py], timeout=120, env=env)
         if r["exit_code"] == 0:
             lock_path = study.root / "lock.txt"
@@ -318,6 +344,73 @@ def create_env(
             "lock": lock,
             "packages": {k: v for k, v in versions.items() if k != "python"},
             "deviations": deviations,
+            "restored_env": restored,
+            "hints": _hints(status, failure, steps, insp, python, from_readme, unpin_versions)
+            + (
+                [f"The working environment from {restored} was put back, so runs still use it."]
+                if restored
+                else []
+            ),
             "host": host_info(),
         },
     )
+
+
+def _hints(
+    status: str,
+    failure: dict | None,
+    steps: list[dict],
+    insp: dict,
+    python: str,
+    from_readme: bool,
+    unpinned: bool,
+) -> list[str]:
+    """What to try next, in plain words, based on what happened."""
+    out: list[str] = []
+    readme_hints = insp.get("readme_install_hints") or []
+    if status == "ok" and any(s.get("step") == "dependencies" for s in steps) and not from_readme:
+        if readme_hints:
+            h = readme_hints[0]
+            out.append(
+                f"Nothing was installed: the repo has no dependency file, but {h['source']} says "
+                f"`pip install {' '.join(h['packages'])}`. Re-run with from_readme=true "
+                "(CLI: --from-readme)."
+            )
+        else:
+            out.append(
+                "Nothing was installed: no dependency file or README `pip install` line was found. "
+                "Read the README and pass the packages it needs with extra=[...] (CLI: --extra), "
+                "which is recorded as a deviation."
+            )
+    if status == "ok" or not failure:
+        return out
+    err = (failure.get("error") or "").lower()
+    if failure.get("step") == "create venv":
+        out.append(
+            f"uv could not create a Python {python} environment. Try a newer Python, for example "
+            "python='3.11' (CLI: --python 3.11); the change is recorded as a deviation."
+        )
+    elif failure.get("timed_out"):
+        out.append("The install timed out. Re-run with a longer timeout (CLI: --timeout).")
+    elif re.search(
+        r"no solution|unsatisfiable|no matching distribution|not found in the package registry|has no wheels|no version of",
+        err,
+    ):
+        if not unpinned:
+            out.append(
+                "The pinned versions could not be resolved for this Python and machine. Try, in "
+                "order: the Python version the pins were made for, then unpin=true (CLI: --unpin). "
+                "Both are recorded as deviations."
+            )
+        else:
+            out.append(
+                "Even without pins the packages could not be resolved. Check the error for a "
+                "package with no build for this platform; if it cannot be installed, record "
+                "could_not_run with this env id as the blocker."
+            )
+    elif "failed to build" in err or "build backend" in err or "error: command" in err:
+        out.append(
+            "A package failed to build from source. A newer Python often has prebuilt wheels "
+            "(try python='3.11'), or unpin=true to allow a release that ships wheels."
+        )
+    return out
