@@ -23,6 +23,8 @@ Results tables in paper PDFs are now read from word positions instead of plain t
 - The rebuilt tables are saved to `paper/<name>.tables.md` for checking a claim against its
   table. MCP claims no longer repeat the caption in every `text`.
 - If pdfminer cannot read a file, the old text reader is used and the paper record says so.
+- `inspect` of a local path no longer fails when git deletes a lock file while the repo is
+  being copied (seen once on macOS CI).
 - Regression set: 13 tables from 8 arXiv papers with hand-transcribed cells, word-box fixtures
   for offline tests, and `scripts/table_regression.py` to score either reader. Precision on the
   9 dev tables went from 0.64 (0.1.1) to 1.00; on 4 held-out tables the first run scored 0.33
