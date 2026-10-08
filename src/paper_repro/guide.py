@@ -51,10 +51,13 @@ def after_paper(e: dict) -> str:
             f"No numbers were recognized. Read {e['paper']['text_path']} and record the claim with "
             "`paper-repro claim` (MCP add_claim), giving the page and table as the source."
         )
+    where = e["paper"].get("tables_path") or e["paper"]["text_path"]
     return (
-        f"{n} claimed numbers recorded as p-ids. Table rows from PDFs are low confidence: check "
-        f"the quoted row (or {e['paper']['text_path']}) before using one. If the one you need is "
-        "missing or misread, record it with `paper-repro claim` (MCP add_claim)."
+        f"{n} claimed numbers recorded as p-ids, table cells with their row, column, page and "
+        f"a confidence (high, medium, low, with notes). Pick the claim whose table, row and "
+        f"column match what the user asked about; for a medium or low one, check it in {where} "
+        "first. If the one you need is missing or misread, record it with `paper-repro claim` "
+        "(MCP add_claim)."
     )
 
 

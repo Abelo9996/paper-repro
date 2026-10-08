@@ -389,8 +389,15 @@ def render_markdown(rep: dict) -> str:
                 for key, label in (("row", "row"), ("column", "column"))
                 if c.get(key)
             )
+            conf = (
+                f", {c['confidence']} confidence"
+                + (f": {'; '.join(c['confidence_notes'])}" if c.get("confidence_notes") else "")
+                if c.get("confidence")
+                else ""
+            )
             L.append(
-                f"The claim ({c.get('table', 'table')}, {cell}), from {where}, as extracted from the PDF:"
+                f"The claim ({c.get('table', 'table')}, {cell}{conf}), from {where}, as extracted "
+                "from the PDF:"
             )
             L.append("")
             L.append(f"> {c['text']}")

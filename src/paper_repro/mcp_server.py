@@ -49,12 +49,19 @@ def _compact_claim(c: dict) -> dict:
         "percent",
         "source",
         "line",
+        "table",
         "row",
         "column",
+        "row_group",
         "confidence",
+        "confidence_score",
+        "confidence_notes",
         "text",
     )
-    return _drop_empty({k: c.get(k) for k in keep}) | {"percent": bool(c.get("percent"))}
+    out = _drop_empty({k: c.get(k) for k in keep}) | {"percent": bool(c.get("percent"))}
+    if c.get("kind") == "paper-table" and " | " in (c.get("text") or ""):
+        out["text"] = c["text"].split(" | ", 1)[1]  # the row; the caption is in the tables file
+    return out
 
 
 def _compact_run(e: dict) -> dict:
@@ -129,10 +136,13 @@ def scan_paper(source: str | None = None, study: str | None = None) -> dict[str,
     """Find the numbers the paper itself claims, for when the README does not state the one you
     need. `source` is an arXiv id or URL, or a local PDF or text file; by default it reads the
     arXiv paper the README links (see `papers` in inspect_repo). Downloads the PDF into the
-    study, saves its text to paper/<name>.txt, and records claims as p1, p2, ... with page,
-    table row and column. Table rows from PDFs are low confidence: check the quoted `text` (or
-    read the saved text file) before comparing against one; if the number you need is missing,
-    record it with add_claim."""
+    study, saves its text to paper/<name>.txt, and records claims as p1, p2, ... Table cells
+    are rebuilt from word positions and carry `table`, `row` and `column` (the exact labels
+    printed in the paper, a two-level header joined as "BLEU EN-DE"), `source` with the page,
+    and `confidence` (high, medium, low) with `confidence_score` and `confidence_notes`. Pick
+    the claim whose table, row and column match the user's question; check a medium or low
+    one in paper/<name>.tables.md (the rebuilt tables) before comparing. If the number you
+    need is missing, record it with add_claim."""
     from . import guide
     from .paper import scan_paper as run
 

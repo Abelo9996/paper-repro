@@ -241,6 +241,10 @@ def cmd_paper(args) -> int:
             f"file: {p['file']['path']} sha256 {p['file']['sha256'][:16]}",
             f"text: {p['text_path']}",
         ]
+        if p.get("tables_path"):
+            lines.append(f"tables: {p['tables_path']} ({len(p.get('tables') or [])} rebuilt)")
+        elif p.get("table_reader", "").startswith("text ("):
+            lines.append(f"tables: {p['table_reader']}")
         if p.get("warning"):
             lines.append(f"warning: {p['warning']}")
         lines.append(f"claimed numbers ({len(e['claims'])}):")
@@ -251,7 +255,9 @@ def cmd_paper(args) -> int:
             pm = f" ± {c['plus_minus']:g}" if c.get("plus_minus") else ""
             cell = " | ".join(x for x in (c.get("row"), c.get("column")) if x)
             cell = f" [{cell}]" if cell else ""
-            lines.append(f"  {c['id']}: {c['raw_metric']} = {val}{pm}{pct}{cell}  ({c['source']})")
+            where = c["source"] + (f", {c['table']}" if c.get("table") else "")
+            conf = f", {c['confidence']}" if c.get("kind") == "paper-table" else ""
+            lines.append(f"  {c['id']}: {c['raw_metric']} = {val}{pm}{pct}{cell}  ({where}{conf})")
         if len(e["claims"]) > len(shown):
             lines.append(f"  ... {len(e['claims']) - len(shown)} more (use --all or --json)")
         lines.append(f"next: {e['next']}")
@@ -515,8 +521,9 @@ def build_parser() -> argparse.ArgumentParser:
         parents=[common],
         help="find the numbers the paper claims (arXiv PDF or a local PDF or text file)",
         description="Download the paper from arXiv (or read a local PDF or text file), save its "
-        "text, and record the numbers it claims as p1, p2, ... Results tables are read "
-        "heuristically and marked low confidence: check the quoted row before using one.",
+        "text, and record the numbers it claims as p1, p2, ... Results tables are rebuilt from "
+        "word positions, so each cell keeps its row and column labels, page and a confidence "
+        "(high, medium, low). The rebuilt tables are saved to paper/<name>.tables.md.",
     )
     s.add_argument(
         "source",

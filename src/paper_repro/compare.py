@@ -193,6 +193,11 @@ def compare_claim(
     center = (lo + hi) / 2
     cid = study.next_id("k", "compare")
     claim_where = f"{claim['source']}" + (f" line {claim['line']}" if claim.get("line") else "")
+    if claim.get("kind") == "paper-table" and claim.get("table"):
+        cell = ", ".join(f'{k} "{claim[k]}"' for k in ("row", "column") if claim.get(k))
+        claim_where += f", {claim['table']}" + (f", {cell}" if cell else "")
+        if claim.get("confidence"):
+            claim_where += f", read with {claim['confidence']} confidence"
 
     base: dict[str, Any] = {
         "id": cid,

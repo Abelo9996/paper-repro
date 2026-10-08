@@ -24,10 +24,13 @@ about the claim and the method comes first.
 2. **Pick the claim.** Choose one headline number the user cares about, ideally one the README
    ties to a specific configuration and command. Say which claim id you picked and why. If the
    number is only in the paper, call `scan_paper()` (it reads the arXiv paper the README links,
-   or pass an arXiv id or a PDF path). Its claims (`p1`, `p2`, ...) carry page, table row and
-   column, and table rows are low confidence: check the quoted `text`, or read the saved
-   `paper/*.txt`, before using one. If the number is missing or misread, record it with
-   `add_claim` and give its source (for example "arXiv:1609.02907 Table 2, row GCN, Cora").
+   or pass an arXiv id or a PDF path). Its claims (`p1`, `p2`, ...) carry the table, page,
+   exact row and column labels, and a confidence (high, medium, low) with notes. Pick the one
+   whose table, row and column match the question (for example Table 2, row
+   "Transformer (big)", column "BLEU EN-DE"). For a medium or low one, check it in the saved
+   `paper/*.tables.md` (the rebuilt tables) or `paper/*.txt` first. If the number is missing
+   or misread, record it with `add_claim` and give its source (for example
+   "arXiv:1609.02907 Table 2, row GCN, Cora").
    Also read what the README says about the code's relation to the paper (a re-implementation
    that "is not intended for reproduction" changes what a mismatch means; say so).
 
