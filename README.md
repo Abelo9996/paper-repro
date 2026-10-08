@@ -8,10 +8,6 @@ uvx paper-repro setup --yes        # register the MCP server and skill with Clau
 uvx paper-repro inspect https://github.com/karpathy/nanoGPT   # or drive it yourself from the CLI
 ```
 
-> Not on PyPI yet. Until the first release, run it straight from GitHub by replacing `uvx paper-repro` with
-> `uvx --from git+https://github.com/Abelo9996/paper-repro paper-repro`. `setup` registers `uvx paper-repro mcp`, so it works once the
-> package is on PyPI.
-
 Papers with Code went offline on 24 July 2025, taking its 79,817 paper-to-code links with it
 ([shutdown record](https://www.codesota.com/papers-with-code/shutdown)). There's no common place
 that tracks whether a paper's released code actually reproduces the numbers in the paper. Research benchmarks for this exist (CORE-Bench, PaperBench), but they score agents,
