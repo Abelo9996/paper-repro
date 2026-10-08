@@ -1,0 +1,54 @@
+[project]
+name = "paper-repro"
+version = "0.1.0"
+description = "Point your agent at a paper's code; it gets it running and tells you whether the headline number reproduces, with the evidence."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Abel Yagubyan" }]
+requires-python = ">=3.11"
+keywords = ["reproducibility", "research", "mcp", "agents", "machine-learning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "mcp>=1.2",
+    "pyyaml>=6",
+]
+
+[project.scripts]
+paper-repro = "paper_repro.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Abelo9996/paper-repro"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/paper_repro"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"skills/paper-repro/SKILL.md" = "paper_repro/skill/SKILL.md"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = ["E501", "SIM105", "SIM108"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
