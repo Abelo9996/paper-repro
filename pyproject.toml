@@ -1,6 +1,6 @@
 [project]
 name = "paper-repro"
-version = "0.1.0"
+version = "0.1.1"
 description = "Point your agent at a paper's code; it gets it running and tells you whether the headline number reproduces, with the evidence."
 readme = "README.md"
 license = "MIT"

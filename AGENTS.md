@@ -10,6 +10,8 @@ src/paper_repro/
   study.py         Study directory, append-only hash-chained evidence.jsonl, state replay
   inspect_repo.py  clone/copy, dependency and entry-point detection, README scan
   claims.py        claimed numbers from Markdown (tables, sentences, ranges, ±)
+  paper.py         claimed numbers from the paper (arXiv PDF or local file, pypdf, heuristic tables)
+  guide.py         the `next` step after each operation (CLI `next:` line, MCP `next` field)
   metrics.py       metric values from logs, JSON, CSV; selectors (m1:acc:last@each)
   envs.py          uv venv + installs, conda translation, unpin, lock.txt
   runner.py        run one shell command with limits, capture outputs and written files
@@ -24,6 +26,7 @@ examples/                     real evidence bundles from real runs
 
 ## Invariants
 
+- Writers hold the study lock (`Study.lock`, `@locked`); agents may call tools in parallel.
 - `evidence.jsonl` is append-only. Every derived view (status, reports) replays it.
   Never mutate an entry; add a new one.
 - A shortened or smoke run can never yield `counts_as_reproduction: true`.
