@@ -20,6 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "mcp>=1.2",
+    "pdfminer-six>=20231228",
     "pypdf>=4",
     "pyyaml>=6",
 ]

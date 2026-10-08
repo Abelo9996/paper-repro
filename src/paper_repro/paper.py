@@ -2,10 +2,10 @@
 
 The README is often not where the headline number lives. This module fetches the paper (only
 when asked), extracts its text with pypdf, and runs the same claim extractor used for READMEs
-over its sentences, plus a heuristic reader for results tables. Every claim keeps the page and
-the quoted line it came from, because PDF text extraction is lossy: the agent must check the
-quote before relying on a claim. The extracted text is saved next to the PDF so it can be read
-and searched directly.
+over its sentences. Results tables in a PDF are rebuilt from word positions (pdf_tables.py), so
+every table cell keeps its exact row label, column label, page and a confidence score. For a
+plain-text source there are no positions, and a simpler line-based table reader is used. The
+extracted text and the rebuilt tables are saved next to the PDF so they can be read directly.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from typing import Any
 
 from . import __version__
 from .claims import METRIC_WORD_RE, _claim, extract_claims
+from .pdf_tables import page_words, read_tables, table_claims, tables_markdown
 from .study import Study, StudyError, locked
 from .util import NUM_RE, sha256_file
 
@@ -100,7 +101,9 @@ def _caption_metric(caption: str) -> re.Match | None:
 
 
 def _table_claims(lines: list[str], label: str, page: int) -> list[dict[str, Any]]:
-    """Read results tables that follow a 'Table N:' caption.
+    """Read results tables that follow a 'Table N:' caption, from plain text (no positions).
+
+    Used for text-file sources, and for PDFs only when the layout reader fails.
 
     A row is a line with a text label followed only by numbers (times and citations in
     brackets are ignored). When a row has as many numbers as the header line has trailing
@@ -178,6 +181,11 @@ def _table_claims(lines: list[str], label: str, page: int) -> list[dict[str, Any
                             "table": f"Table {cap.group('n')}",
                             "page": page,
                             "confidence": "low",
+                            "confidence_score": 0.3,
+                            "confidence_notes": [
+                                "read from plain text without positions: columns matched by order"
+                            ],
+                            "reader": "text",
                         },
                     )
                 )
@@ -219,6 +227,40 @@ def _download(url: str, dest: Path, timeout: float) -> None:
     if dest.read_bytes()[:5] != b"%PDF-":
         dest.unlink(missing_ok=True)
         raise StudyError(f"{url} did not return a PDF. Pass a local PDF path instead.")
+
+
+TABLE_CAPTION_RE = re.compile(r"\bTable\s+(?:[0-9]+|[IVX]+)\s*[:.]", re.IGNORECASE)
+
+
+def _pdf_table_claims(
+    pdf: Path, pages: list[str], label: str, info: dict[str, Any]
+) -> dict[int, list[dict[str, Any]]]:
+    """Table claims per page from word positions; the text reader if that fails."""
+    wanted = {n for n, text in enumerate(pages, start=1) if TABLE_CAPTION_RE.search(text)}
+    by_page: dict[int, list[dict[str, Any]]] = {}
+    try:
+        tables = read_tables(page_words(pdf, wanted)) if wanted else []
+    except Exception as exc:  # pdfminer raises many types on unusual files
+        info["table_reader"] = f"text (the layout reader failed: {type(exc).__name__}: {exc})"
+        for n, text in enumerate(pages, start=1):
+            by_page[n] = _table_claims(text.splitlines(), label, n)
+        return by_page
+    info["table_reader"] = "layout"
+    info["tables"] = [
+        {
+            "table": f"Table {t.number}",
+            "page": t.page,
+            "rows": len(t.rows),
+            "columns": len(t.columns),
+        }
+        for t in tables
+    ]
+    tables_path = pdf.with_suffix(".tables.md")
+    tables_path.write_text(tables_markdown(tables, label), encoding="utf-8")
+    info["tables_path"] = tables_path
+    for c in table_claims(tables, label):
+        by_page.setdefault(c["page"], []).append(c)
+    return by_page
 
 
 @locked
@@ -278,12 +320,29 @@ def scan_paper(study: Study, source: str | None = None, timeout: float = 60) -> 
             encoding="utf-8",
         )
 
+    if dest.suffix.lower() == ".pdf":
+        tables_by_page = _pdf_table_claims(dest, pages, label, info)
+    else:
+        info["table_reader"] = "text"
+        tables_by_page = {
+            n: _table_claims(p.splitlines(), label, n) for n, p in enumerate(pages, start=1)
+        }
+
     claims: list[dict[str, Any]] = []
     seen: set[tuple] = set()
     for page_no, page in enumerate(pages, start=1):
-        lines = page.splitlines()
-        for c in _table_claims(lines, label, page_no) + _prose_claims(page, label, page_no):
-            key = (c["metric"], c["value"], c["lo"], c["hi"], page_no, c.get("row"))
+        found = tables_by_page.get(page_no, []) + _prose_claims(page, label, page_no)
+        for c in found:
+            key = (
+                c["metric"],
+                c["value"],
+                c["lo"],
+                c["hi"],
+                page_no,
+                c.get("table"),
+                c.get("row"),
+                c.get("column"),
+            )
             if key in seen:
                 continue
             seen.add(key)
@@ -306,6 +365,7 @@ def scan_paper(study: Study, source: str | None = None, timeout: float = 60) -> 
             "label": label,
             "file": {"path": rel(dest), "sha256": sha256_file(dest), "bytes": dest.stat().st_size},
             "text_path": rel(text_path),
+            **({"tables_path": rel(info.pop("tables_path"))} if "tables_path" in info else {}),
             "pages": len(pages),
             "characters": sum(len(p) for p in pages),
         }
