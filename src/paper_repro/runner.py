@@ -55,22 +55,51 @@ def _limits_preexec(cpu_seconds: int | None, memory_mb: int | None):
     return apply
 
 
-def _kill_tree(pid: int) -> None:
+def _group_members(pgid: int) -> list[int]:
+    """PIDs in a process group, read from `ps` (works when killpg reports EPERM)."""
     try:
-        os.killpg(pid, signal.SIGTERM)
-    except (ProcessLookupError, PermissionError):
+        out = subprocess.run(
+            ["ps", "-A", "-o", "pid=", "-o", "pgid="], capture_output=True, text=True, timeout=10
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+    pids = []
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[1] == str(pgid) and parts[0] != str(os.getpid()):
+            pids.append(int(parts[0]))
+    return pids
+
+
+def _signal_group(pgid: int, sig: int) -> None:
+    try:
+        os.killpg(pgid, sig)
         return
-    deadline = time.monotonic() + 5
-    while time.monotonic() < deadline:
-        try:
-            os.killpg(pid, 0)
-        except ProcessLookupError:
-            return
-        time.sleep(0.1)
-    try:
-        os.killpg(pid, signal.SIGKILL)
     except ProcessLookupError:
-        pass
+        return
+    except PermissionError:
+        pass  # macOS returns EPERM for a group whose leader is a zombie; signal members directly
+    for pid in _group_members(pgid):
+        try:
+            os.kill(pid, sig)
+        except (ProcessLookupError, PermissionError):
+            pass
+
+
+def _kill_tree(pgid: int, grace: float = 5.0) -> int:
+    """Terminate every process in the group: SIGTERM, then SIGKILL after ``grace`` seconds.
+    Returns how many processes were still alive when we started."""
+    alive = _group_members(pgid)
+    if not alive:
+        return 0
+    _signal_group(pgid, signal.SIGTERM)
+    deadline = time.monotonic() + grace
+    while time.monotonic() < deadline:
+        if not _group_members(pgid):
+            return len(alive)
+        time.sleep(0.2)
+    _signal_group(pgid, signal.SIGKILL)
+    return len(alive)
 
 
 def run_command(
@@ -95,6 +124,9 @@ def run_command(
             "A shortened run needs --note saying what was shortened (epochs, data, steps)."
         )
     rid = study.next_id("r", "run")
+    while (study.runs_dir / rid).exists():
+        # a directory left by a run that was interrupted before it was recorded; never reuse it
+        rid = f"r{int(rid[1:]) + 1}"
     run_dir = study.runs_dir / rid
     run_dir.mkdir(parents=True, exist_ok=True)
     out_path, err_path = run_dir / "stdout.txt", run_dir / "stderr.txt"
@@ -158,12 +190,16 @@ def run_command(
         th.start()
         th.join(timeout)
         timed_out = th.is_alive()
+        leftovers = 0
         if timed_out:
             if posix:
                 _kill_tree(proc.pid)
             else:
                 proc.kill()
             th.join(30)
+        elif posix:
+            # background processes the command left behind in its process group
+            leftovers = _kill_tree(proc.pid, grace=2.0)
     wall = time.monotonic() - t0
     ended = now_iso()
 
@@ -191,49 +227,57 @@ def run_command(
     if exit_code is not None and proc.returncode is None:
         proc.returncode = exit_code  # already reaped by wait4; keep Popen from waiting again
 
-    after = snapshot(study.repo)
-    written, deleted = [], []
-    for path, meta in after.items():
-        old = before.get(path)
-        if old != meta:
-            p = study.repo / path
-            written.append(
+    # Everything below must not lose the run: if bookkeeping fails, record that and carry on.
+    recording_error = None
+    written: list[dict] = []
+    deleted: list[str] = []
+    captured: list[dict] = []
+    try:
+        after = snapshot(study.repo)
+        written, deleted = [], []
+        for path, meta in after.items():
+            old = before.get(path)
+            if old != meta:
+                p = study.repo / path
+                written.append(
+                    {
+                        "path": path,
+                        "bytes": meta[0],
+                        "change": "modified" if old else "created",
+                        "sha256": sha256_file(p, HASH_LIMIT) if len(written) < MAX_LISTED else None,
+                    }
+                )
+        for path in before:
+            if path not in after:
+                deleted.append(path)
+
+        # Keep a copy of small result-like files as they were when this run ended, so metrics
+        # extracted later cannot pick up a file that a later run overwrote.
+        from .metrics import CAPTURE_SUFFIXES, STRUCTURED_SUFFIXES
+
+        STRUCTURED = STRUCTURED_SUFFIXES | {".jsonl"}
+
+        captured = []
+        for w in written:
+            src = study.repo / w["path"]
+            suffix = src.suffix.lower()
+            limit = CAPTURE_LIMIT if suffix in STRUCTURED else TEXT_CAPTURE_LIMIT
+            if len(captured) >= MAX_CAPTURED or w["bytes"] > limit:
+                continue
+            if suffix not in CAPTURE_SUFFIXES or not src.exists():
+                continue
+            dst = run_dir / "files" / w["path"]
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+            captured.append(
                 {
-                    "path": path,
-                    "bytes": meta[0],
-                    "change": "modified" if old else "created",
-                    "sha256": sha256_file(p, HASH_LIMIT) if len(written) < MAX_LISTED else None,
+                    "path": w["path"],
+                    "copy": str(dst.relative_to(study.root)),
+                    "sha256": sha256_file(dst),
                 }
             )
-    for path in before:
-        if path not in after:
-            deleted.append(path)
-
-    # Keep a copy of small result-like files as they were when this run ended, so metrics
-    # extracted later cannot pick up a file that a later run overwrote.
-    from .metrics import CAPTURE_SUFFIXES, STRUCTURED_SUFFIXES
-
-    STRUCTURED = STRUCTURED_SUFFIXES | {".jsonl"}
-
-    captured = []
-    for w in written:
-        src = study.repo / w["path"]
-        suffix = src.suffix.lower()
-        limit = CAPTURE_LIMIT if suffix in STRUCTURED else TEXT_CAPTURE_LIMIT
-        if len(captured) >= MAX_CAPTURED or w["bytes"] > limit:
-            continue
-        if suffix not in CAPTURE_SUFFIXES or not src.exists():
-            continue
-        dst = run_dir / "files" / w["path"]
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dst)
-        captured.append(
-            {
-                "path": w["path"],
-                "copy": str(dst.relative_to(study.root)),
-                "sha256": sha256_file(dst),
-            }
-        )
+    except Exception as exc:  # noqa: BLE001
+        recording_error = f"{type(exc).__name__}: {exc}"
 
     stdout_text = out_path.read_text(encoding="utf-8", errors="replace")
     stderr_text = err_path.read_text(encoding="utf-8", errors="replace")
@@ -260,6 +304,8 @@ def run_command(
             "signal": signal_name,
             "timed_out": timed_out,
             "limits": limits,
+            "leftover_processes_killed": leftovers,
+            "recording_error": recording_error,
             "stdout": {
                 "path": rel_out,
                 "bytes": out_path.stat().st_size,

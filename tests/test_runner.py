@@ -58,3 +58,30 @@ def test_cpu_limit_is_applied(study):
 def test_scope_validation(study):
     with pytest.raises(StudyError):
         run_command(study, "true", scope="partial")
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX process groups")
+def test_timeout_escalates_to_sigkill(study):
+    e = run_command(study, "trap '' TERM; sleep 60", timeout=1, use_env=False)
+    assert e["timed_out"] is True
+    assert e["wall_seconds"] < 20
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX process groups")
+def test_leftover_background_processes_are_cleaned_up(study, tmp_path):
+    marker = tmp_path / "late.txt"
+    e = run_command(study, f"(sleep 3; touch {marker}) & echo started", use_env=False)
+    assert e["exit_code"] == 0
+    assert e["leftover_processes_killed"] >= 1
+    import time
+
+    time.sleep(4)
+    assert not marker.exists()
+
+
+def test_interrupted_run_directory_is_never_reused(study):
+    (study.runs_dir / "r1").mkdir(parents=True)
+    (study.runs_dir / "r1" / "stdout.txt").write_text("from a run that was never recorded\n")
+    e = run_command(study, "echo hi", use_env=False)
+    assert e["id"] == "r2"
+    assert (study.runs_dir / "r1" / "stdout.txt").read_text().startswith("from a run")
