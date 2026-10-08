@@ -138,7 +138,15 @@ def acquire(source: str, dest: Path, ref: str | None = None) -> dict:
     elif local.exists() and local.is_dir():
         info["mode"] = "copy"
         ignore = shutil.ignore_patterns(*SKIP_DIRS - {".git"})
-        shutil.copytree(local, dest, ignore=ignore, symlinks=True)
+        try:
+            shutil.copytree(local, dest, ignore=ignore, symlinks=True)
+        except shutil.Error as exc:
+            # copytree copies everything it can and then reports. A file that vanished while
+            # copying (git's background maintenance creates and deletes lock files) is not a
+            # failure; anything else is.
+            real = [e for e in exc.args[0] if "No such file or directory" not in str(e)]
+            if real:
+                raise
         info["origin_path"] = str(local.resolve())
     else:
         url = source
