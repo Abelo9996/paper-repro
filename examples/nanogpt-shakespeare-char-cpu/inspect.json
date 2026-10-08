@@ -1,0 +1,613 @@
+{
+  "seq": 1,
+  "ts": "2026-10-08T10:49:54.077160Z",
+  "kind": "inspect",
+  "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+  "repo": {
+    "source": "https://github.com/karpathy/nanoGPT",
+    "ref_requested": null,
+    "mode": "git-clone",
+    "url": "https://github.com/karpathy/nanoGPT",
+    "clone": {
+      "argv": [
+        "git",
+        "clone",
+        "--depth",
+        "1",
+        "--quiet",
+        "https://github.com/karpathy/nanoGPT",
+        "/private/tmp/pr-val/paper-repro-runs/karpathy-nanoGPT/repo"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 0.659
+    },
+    "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+    "dirty": false,
+    "commit_date": "2025-11-12T11:52:34-08:00"
+  },
+  "size": {
+    "files": 26,
+    "bytes": 579917,
+    "truncated": false
+  },
+  "languages": [
+    {
+      "language": "Jupyter Notebook",
+      "bytes": 283098
+    },
+    {
+      "language": "Python",
+      "bytes": 51670
+    }
+  ],
+  "primary_language": "Python",
+  "dependency_files": [],
+  "python_hints": [],
+  "suggested_python": {
+    "version": "3.11",
+    "reason": "No Python version stated in the repo; 3.11 is a default."
+  },
+  "readmes": [
+    "README.md",
+    "data/openwebtext/readme.md",
+    "data/shakespeare/readme.md",
+    "data/shakespeare_char/readme.md"
+  ],
+  "readme_commands": [
+    {
+      "source": "README.md:22",
+      "command": "pip install torch numpy transformers datasets tiktoken wandb tqdm"
+    },
+    {
+      "source": "README.md:40",
+      "command": "python data/shakespeare_char/prepare.py"
+    },
+    {
+      "source": "README.md:48",
+      "command": "python train.py config/train_shakespeare_char.py"
+    },
+    {
+      "source": "README.md:54",
+      "command": "python sample.py --out_dir=out-shakespeare-char"
+    },
+    {
+      "source": "README.md:85",
+      "command": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0"
+    },
+    {
+      "source": "README.md:91",
+      "command": "python sample.py --out_dir=out-shakespeare-char --device=cpu"
+    },
+    {
+      "source": "README.md:112",
+      "command": "python data/openwebtext/prepare.py"
+    },
+    {
+      "source": "README.md:118",
+      "command": "torchrun --standalone --nproc_per_node=8 train.py config/train_gpt2.py"
+    },
+    {
+      "source": "README.md:127",
+      "command": "torchrun --nproc_per_node=8 --nnodes=2 --node_rank=0 --master_addr=123.456.123.456 --master_port=1234 train.py"
+    },
+    {
+      "source": "README.md:129",
+      "command": "torchrun --nproc_per_node=8 --nnodes=2 --node_rank=1 --master_addr=123.456.123.456 --master_port=1234 train.py"
+    },
+    {
+      "source": "README.md:132",
+      "command": "python sample.py"
+    },
+    {
+      "source": "README.md:134",
+      "command": "python train.py"
+    },
+    {
+      "source": "README.md:141",
+      "command": "python train.py config/eval_gpt2.py"
+    },
+    {
+      "source": "README.md:142",
+      "command": "python train.py config/eval_gpt2_medium.py"
+    },
+    {
+      "source": "README.md:143",
+      "command": "python train.py config/eval_gpt2_large.py"
+    },
+    {
+      "source": "README.md:144",
+      "command": "python train.py config/eval_gpt2_xl.py"
+    },
+    {
+      "source": "README.md:163",
+      "command": "python train.py config/finetune_shakespeare.py"
+    },
+    {
+      "source": "README.md:197",
+      "command": "python sample.py \\"
+    },
+    {
+      "source": "README.md:203",
+      "command": "python sample.py --start=FILE:prompt.txt"
+    }
+  ],
+  "readme_install_hints": [
+    {
+      "source": "README.md:22",
+      "packages": [
+        "torch",
+        "numpy",
+        "transformers",
+        "datasets",
+        "tiktoken",
+        "wandb",
+        "tqdm"
+      ]
+    }
+  ],
+  "entry_points": [
+    {
+      "path": "config/eval_gpt2.py",
+      "why": [
+        "name",
+        "mentioned in README"
+      ],
+      "flags": []
+    },
+    {
+      "path": "config/eval_gpt2_large.py",
+      "why": [
+        "name",
+        "mentioned in README"
+      ],
+      "flags": []
+    },
+    {
+      "path": "config/eval_gpt2_medium.py",
+      "why": [
+        "name",
+        "mentioned in README"
+      ],
+      "flags": []
+    },
+    {
+      "path": "config/eval_gpt2_xl.py",
+      "why": [
+        "name",
+        "mentioned in README"
+      ],
+      "flags": []
+    },
+    {
+      "path": "config/train_gpt2.py",
+      "why": [
+        "name",
+        "mentioned in README"
+      ],
+      "flags": []
+    },
+    {
+      "path": "config/train_shakespeare_char.py",
+      "why": [
+        "name",
+        "mentioned in README"
+      ],
+      "flags": []
+    },
+    {
+      "path": "data/openwebtext/prepare.py",
+      "why": [
+        "__main__ guard",
+        "mentioned in README"
+      ],
+      "flags": []
+    },
+    {
+      "path": "train.py",
+      "why": [
+        "name",
+        "mentioned in README"
+      ],
+      "flags": []
+    },
+    {
+      "path": "bench.py",
+      "why": [
+        "mentioned in README"
+      ],
+      "flags": []
+    },
+    {
+      "path": "config/finetune_shakespeare.py",
+      "why": [
+        "mentioned in README"
+      ],
+      "flags": []
+    },
+    {
+      "path": "data/shakespeare/prepare.py",
+      "why": [
+        "mentioned in README"
+      ],
+      "flags": []
+    },
+    {
+      "path": "data/shakespeare_char/prepare.py",
+      "why": [
+        "mentioned in README"
+      ],
+      "flags": []
+    },
+    {
+      "path": "model.py",
+      "why": [
+        "mentioned in README"
+      ],
+      "flags": []
+    },
+    {
+      "path": "sample.py",
+      "why": [
+        "mentioned in README"
+      ],
+      "flags": []
+    }
+  ],
+  "notebooks": [
+    "scaling_laws.ipynb",
+    "transformer_sizing.ipynb"
+  ],
+  "downloads": [
+    {
+      "url": "https://huggingface.co/datasets/openwebtext",
+      "source": "README.md:115"
+    },
+    {
+      "code": "def from_pretrained(cls, model_type, override_args=None):",
+      "source": "model.py:207"
+    },
+    {
+      "code": "model_hf = GPT2LMHeadModel.from_pretrained(model_type)",
+      "source": "model.py:238"
+    },
+    {
+      "code": "model = GPT.from_pretrained(init_from, dict(dropout=0.0))",
+      "source": "sample.py:49"
+    },
+    {
+      "code": "model = GPT.from_pretrained(init_from, override_args)",
+      "source": "train.py:185"
+    },
+    {
+      "code": "# number of workers in load_dataset() call",
+      "source": "data/openwebtext/prepare.py:14"
+    },
+    {
+      "code": "dataset = load_dataset(\"openwebtext\", num_proc=num_proc_load_dataset)",
+      "source": "data/openwebtext/prepare.py:23"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt",
+      "source": "data/shakespeare/prepare.py:9"
+    },
+    {
+      "code": "f.write(requests.get(data_url).text)",
+      "source": "data/shakespeare/prepare.py:11"
+    },
+    {
+      "code": "f.write(requests.get(data_url).text)",
+      "source": "data/shakespeare_char/prepare.py:17"
+    }
+  ],
+  "gpu": {
+    "code": [
+      {
+        "source": "bench.py:17",
+        "text": "device = 'cuda' # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1', etc."
+      },
+      {
+        "source": "sample.py:20",
+        "text": "device = 'cuda' # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1', etc."
+      },
+      {
+        "source": "train.py:27",
+        "text": "from torch.nn.parallel import DistributedDataParallel as DDP"
+      },
+      {
+        "source": "train.py:28",
+        "text": "from torch.distributed import init_process_group, destroy_process_group"
+      },
+      {
+        "source": "train.py:70",
+        "text": "backend = 'nccl' # 'nccl', 'gloo', etc."
+      },
+      {
+        "source": "train.py:72",
+        "text": "device = 'cuda' # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps' on macbooks"
+      }
+    ],
+    "readme": [
+      {
+        "source": "README.md:45",
+        "text": "**I have a GPU**. Great, we can quickly train a baby GPT with the settings provided in the [config/train_shakespeare_char.py](config/train_shakespeare_char.py) config file:"
+      },
+      {
+        "source": "README.md:51",
+        "text": "If you peek inside it, you'll see that we're training a GPT with a context size of up to 256 characters, 384 feature channels, and it is a 6-layer Transformer with 6 heads in each layer. On one A100 G"
+      },
+      {
+        "source": "README.md:80",
+        "text": "lol  `\u00af\\_(\u30c4)_/\u00af`. Not bad for a character-level model after 3 minutes of training on a GPU. Better results are quite likely obtainable by instead finetuning a pretrained GPT-2 model on this dataset (s"
+      },
+      {
+        "source": "README.md:88",
+        "text": "Here, since we are running on CPU instead of GPU we must set both `--device=cpu` and also turn off PyTorch 2.0 compile with `--compile=False`. Then when we evaluate we get a bit more noisy but faster "
+      },
+      {
+        "source": "README.md:105",
+        "text": "Finally, on Apple Silicon Macbooks and with a recent PyTorch version make sure to add `--device=mps` (short for \"Metal Performance Shaders\"); PyTorch then uses the on-chip GPU that can *significantly*"
+      },
+      {
+        "source": "README.md:115",
+        "text": "This downloads and tokenizes the [OpenWebText](https://huggingface.co/datasets/openwebtext) dataset. It will create a `train.bin` and `val.bin` which holds the GPT2 BPE token ids in one sequence, stor"
+      },
+      {
+        "source": "README.md:123",
+        "text": "If you're in a cluster environment and you are blessed with multiple GPU nodes you can make GPU go brrrr e.g. across 2 nodes like:"
+      },
+      {
+        "source": "README.md:134",
+        "text": "Finally, to train on a single GPU simply run the `python train.py` script. Have a look at all of its args, the script tries to be very readable, hackable and transparent. You'll most likely want to tu"
+      },
+      {
+        "source": "README.md:160",
+        "text": "Finetuning is no different than training, we just make sure to initialize from a pretrained model and train with a smaller learning rate. For an example of how to finetune a GPT on new text go to `dat"
+      },
+      {
+        "source": "README.md:234",
+        "text": "All nanoGPT experiments are powered by GPUs on [Lambda labs](https://lambdalabs.com), my favorite Cloud GPU provider. Thank you Lambda labs for sponsoring nanoGPT!"
+      }
+    ],
+    "availability_checks": 3,
+    "summary": "6 CUDA-specific code or dependency lines, 3 device-availability checks or device flags, 10 README lines mentioning GPUs."
+  },
+  "claims": [
+    {
+      "metric": "best_val_loss",
+      "raw_metric": "best validation loss",
+      "value": 1.4697,
+      "value_text": "1.4697",
+      "lo": null,
+      "hi": null,
+      "lo_text": null,
+      "hi_text": null,
+      "plus_minus": null,
+      "percent": false,
+      "source": "README.md",
+      "line": 51,
+      "text": "...On one A100 GPU this training run takes about 3 minutes and the best validation loss is 1.4697.",
+      "kind": "prose",
+      "id": "c1"
+    },
+    {
+      "metric": "loss",
+      "raw_metric": "loss",
+      "value": 1.88,
+      "value_text": "1.88",
+      "lo": null,
+      "hi": null,
+      "lo_text": null,
+      "hi_text": null,
+      "plus_minus": null,
+      "percent": false,
+      "source": "README.md",
+      "line": 88,
+      "text": "...This still runs in about ~3 minutes, but gets us a loss of only 1.88 and therefore also worse samples, but it's still good fun:",
+      "kind": "prose",
+      "id": "c2"
+    },
+    {
+      "metric": "loss",
+      "raw_metric": "loss",
+      "value": 2.85,
+      "value_text": "2.85",
+      "lo": null,
+      "hi": null,
+      "lo_text": null,
+      "hi_text": null,
+      "plus_minus": null,
+      "percent": false,
+      "source": "README.md",
+      "line": 121,
+      "text": "This will run for about 4 days using PyTorch Distributed Data Parallel (DDP) and go down to loss of ~2.85.",
+      "kind": "prose",
+      "id": "c3"
+    },
+    {
+      "metric": "val_loss",
+      "raw_metric": "val loss",
+      "value": 3.11,
+      "value_text": "3.11",
+      "lo": null,
+      "hi": null,
+      "lo_text": null,
+      "hi_text": null,
+      "plus_minus": null,
+      "percent": false,
+      "source": "README.md",
+      "line": 121,
+      "text": "...Now, a GPT-2 model just evaluated on OWT gets a val loss of about 3.11, but if you finetune it it will come down to ~2.85 territory (due to an apparent domain gap), making the two models ~match.",
+      "kind": "prose",
+      "id": "c4"
+    },
+    {
+      "metric": "train_loss",
+      "raw_metric": "train loss",
+      "value": 3.11,
+      "value_text": "3.11",
+      "lo": null,
+      "hi": null,
+      "lo_text": null,
+      "hi_text": null,
+      "plus_minus": null,
+      "percent": false,
+      "source": "README.md",
+      "line": 151,
+      "text": "| gpt2 | 124M         | 3.11  | 3.12     |",
+      "kind": "table",
+      "table_header": "model | params | train loss | val loss",
+      "row": "gpt2",
+      "column": "train loss",
+      "confidence": "high",
+      "id": "c5"
+    },
+    {
+      "metric": "val_loss",
+      "raw_metric": "val loss",
+      "value": 3.12,
+      "value_text": "3.12",
+      "lo": null,
+      "hi": null,
+      "lo_text": null,
+      "hi_text": null,
+      "plus_minus": null,
+      "percent": false,
+      "source": "README.md",
+      "line": 151,
+      "text": "| gpt2 | 124M         | 3.11  | 3.12     |",
+      "kind": "table",
+      "table_header": "model | params | train loss | val loss",
+      "row": "gpt2",
+      "column": "val loss",
+      "confidence": "high",
+      "id": "c6"
+    },
+    {
+      "metric": "train_loss",
+      "raw_metric": "train loss",
+      "value": 2.85,
+      "value_text": "2.85",
+      "lo": null,
+      "hi": null,
+      "lo_text": null,
+      "hi_text": null,
+      "plus_minus": null,
+      "percent": false,
+      "source": "README.md",
+      "line": 152,
+      "text": "| gpt2-medium | 350M  | 2.85  | 2.84     |",
+      "kind": "table",
+      "table_header": "model | params | train loss | val loss",
+      "row": "gpt2-medium",
+      "column": "train loss",
+      "confidence": "high",
+      "id": "c7"
+    },
+    {
+      "metric": "val_loss",
+      "raw_metric": "val loss",
+      "value": 2.84,
+      "value_text": "2.84",
+      "lo": null,
+      "hi": null,
+      "lo_text": null,
+      "hi_text": null,
+      "plus_minus": null,
+      "percent": false,
+      "source": "README.md",
+      "line": 152,
+      "text": "| gpt2-medium | 350M  | 2.85  | 2.84     |",
+      "kind": "table",
+      "table_header": "model | params | train loss | val loss",
+      "row": "gpt2-medium",
+      "column": "val loss",
+      "confidence": "high",
+      "id": "c8"
+    },
+    {
+      "metric": "train_loss",
+      "raw_metric": "train loss",
+      "value": 2.66,
+      "value_text": "2.66",
+      "lo": null,
+      "hi": null,
+      "lo_text": null,
+      "hi_text": null,
+      "plus_minus": null,
+      "percent": false,
+      "source": "README.md",
+      "line": 153,
+      "text": "| gpt2-large | 774M   | 2.66  | 2.67     |",
+      "kind": "table",
+      "table_header": "model | params | train loss | val loss",
+      "row": "gpt2-large",
+      "column": "train loss",
+      "confidence": "high",
+      "id": "c9"
+    },
+    {
+      "metric": "val_loss",
+      "raw_metric": "val loss",
+      "value": 2.67,
+      "value_text": "2.67",
+      "lo": null,
+      "hi": null,
+      "lo_text": null,
+      "hi_text": null,
+      "plus_minus": null,
+      "percent": false,
+      "source": "README.md",
+      "line": 153,
+      "text": "| gpt2-large | 774M   | 2.66  | 2.67     |",
+      "kind": "table",
+      "table_header": "model | params | train loss | val loss",
+      "row": "gpt2-large",
+      "column": "val loss",
+      "confidence": "high",
+      "id": "c10"
+    },
+    {
+      "metric": "train_loss",
+      "raw_metric": "train loss",
+      "value": 2.56,
+      "value_text": "2.56",
+      "lo": null,
+      "hi": null,
+      "lo_text": null,
+      "hi_text": null,
+      "plus_minus": null,
+      "percent": false,
+      "source": "README.md",
+      "line": 154,
+      "text": "| gpt2-xl | 1558M     | 2.56  | 2.54     |",
+      "kind": "table",
+      "table_header": "model | params | train loss | val loss",
+      "row": "gpt2-xl",
+      "column": "train loss",
+      "confidence": "high",
+      "id": "c11"
+    },
+    {
+      "metric": "val_loss",
+      "raw_metric": "val loss",
+      "value": 2.54,
+      "value_text": "2.54",
+      "lo": null,
+      "hi": null,
+      "lo_text": null,
+      "hi_text": null,
+      "plus_minus": null,
+      "percent": false,
+      "source": "README.md",
+      "line": 154,
+      "text": "| gpt2-xl | 1558M     | 2.56  | 2.54     |",
+      "kind": "table",
+      "table_header": "model | params | train loss | val loss",
+      "row": "gpt2-xl",
+      "column": "val loss",
+      "confidence": "high",
+      "id": "c12"
+    }
+  ],
+  "hash": "f2b69f616f3b19339b400323e1c4b052040ed760819655c3a353aaf4a3cc9bae"
+}

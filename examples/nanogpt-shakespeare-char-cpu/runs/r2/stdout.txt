@@ -1,0 +1,70 @@
+Overriding config with config/train_shakespeare_char.py:
+# train a miniature character-level shakespeare model
+# good for debugging and playing on macbooks and such
+
+out_dir = 'out-shakespeare-char'
+eval_interval = 250 # keep frequent because we'll overfit
+eval_iters = 200
+log_interval = 10 # don't print too too often
+
+# we expect to overfit on this small dataset, so only save when val improves
+always_save_checkpoint = False
+
+wandb_log = False # override via command line if you like
+wandb_project = 'shakespeare-char'
+wandb_run_name = 'mini-gpt'
+
+dataset = 'shakespeare_char'
+gradient_accumulation_steps = 1
+batch_size = 64
+block_size = 256 # context of up to 256 previous characters
+
+# baby GPT model :)
+n_layer = 6
+n_head = 6
+n_embd = 384
+dropout = 0.2
+
+learning_rate = 1e-3 # with baby networks can afford to go a bit higher
+max_iters = 5000
+lr_decay_iters = 5000 # make equal to max_iters usually
+min_lr = 1e-4 # learning_rate / 10 usually
+beta2 = 0.99 # make a bit bigger because number of tokens per iter is small
+
+warmup_iters = 100 # not super necessary potentially
+
+# on macbook also add
+# device = 'cpu'  # run on cpu only
+# compile = False # do not torch compile the model
+
+Overriding: device = cpu
+Overriding: compile = False
+Overriding: eval_iters = 2
+Overriding: log_interval = 1
+Overriding: block_size = 64
+Overriding: batch_size = 12
+Overriding: n_layer = 4
+Overriding: n_head = 4
+Overriding: n_embd = 128
+Overriding: max_iters = 10
+Overriding: lr_decay_iters = 10
+Overriding: dropout = 0.0
+tokens per iteration will be: 768
+found vocab_size = 65 (inside data/shakespeare_char/meta.pkl)
+Initializing a new model from scratch
+number of parameters: 0.80M
+num decayed parameter tensors: 18, with 802,944 parameters
+num non-decayed parameter tensors: 9, with 1,152 parameters
+using fused AdamW: False
+step 0: train loss 4.1667, val loss 4.1817
+iter 0: loss 4.1828, time 451.40ms, mfu -100.00%
+iter 1: loss 4.1656, time 146.28ms, mfu -100.00%
+iter 2: loss 4.1197, time 164.91ms, mfu -100.00%
+iter 3: loss 4.0581, time 727.28ms, mfu -100.00%
+iter 4: loss 4.0039, time 295.51ms, mfu -100.00%
+iter 5: loss 3.9640, time 127.19ms, mfu 0.01%
+iter 6: loss 3.9094, time 56.96ms, mfu 0.01%
+iter 7: loss 3.8430, time 57.26ms, mfu 0.01%
+iter 8: loss 3.7979, time 104.58ms, mfu 0.01%
+iter 9: loss 3.7735, time 60.98ms, mfu 0.01%
+iter 10: loss 3.7437, time 54.40ms, mfu 0.01%

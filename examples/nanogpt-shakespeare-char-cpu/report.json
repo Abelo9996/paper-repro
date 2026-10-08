@@ -1,0 +1,263 @@
+{
+  "tool": {
+    "name": "paper-repro",
+    "version": "0.1.0"
+  },
+  "generated_at": "2026-10-08T10:58:49.040888Z",
+  "repo": {
+    "source": "https://github.com/karpathy/nanoGPT",
+    "url": "https://github.com/karpathy/nanoGPT",
+    "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+    "commit_date": "2025-11-12T11:52:34-08:00",
+    "ref_requested": null,
+    "dirty": false
+  },
+  "host": {
+    "cpu": "Apple M4",
+    "cpu_count": 10,
+    "machine": "arm64",
+    "memory_gb": 16.0,
+    "os": "Darwin",
+    "os_release": "25.2.0",
+    "os_version": "26.2",
+    "python_of_tool": "3.12.13"
+  },
+  "environment": {
+    "id": "e1",
+    "status": "ok",
+    "python": "3.12.13",
+    "uv": "uv 0.12.5 (210d1f678 2026-08-14 aarch64-apple-darwin)",
+    "requirements": [],
+    "extra": [],
+    "unpinned": false,
+    "lock": {
+      "packages": 62,
+      "path": "lock.txt",
+      "sha256": "efb02c44428a5c7040e5872c87635da2d06428cffe9888a25c0a10de612db348"
+    },
+    "key_packages": {
+      "datasets": "1.1.1",
+      "numpy": "2.5.3",
+      "tiktoken": "0.14.0",
+      "torch": "2.14.1",
+      "tqdm": "4.70.1",
+      "transformers": "5.19.0",
+      "wandb": "0.30.0"
+    },
+    "failure": null,
+    "steps": [
+      {
+        "command": "uv venv --quiet --python 3.12 <study>/env",
+        "exit_code": 0,
+        "stderr_tail": "",
+        "step": "create venv",
+        "timed_out": false,
+        "wall_seconds": 0.133
+      },
+      {
+        "command": "uv pip install --python <study>/env/bin/python torch numpy transformers datasets tiktoken wandb tqdm",
+        "exit_code": 0,
+        "stderr_tail": " + anyio==4.15.1\n + certifi==2026.7.22\n + charset-normalizer==3.5.2\n + click==8.5.0\n + datasets==1.1.1\n + dill==0.4.1\n + filelock==4.0.12\n + fsspec==2026.9.0\n + googleapis-common-protos==1.75.5\n + h11==0.16.0\n + hf-xet==1.7.0\n + httpcore==1.0.9\n + httpx==0.28.1\n + huggingface-hub==1.33.0\n + idna==3.20\n + jinja2==3.1.6\n + markdown-it-py==4.2.0\n + markupsafe==3.0.4\n + mdurl==0.1.2\n + mpmath==1.3.0\n + multiprocess==0.70.19\n + networkx==3.7\n + numpy==2.5.3\n + opentelemetry-api==1.45.1\n + opentelemetry-exporter-http-transport==0.66b1\n + opentelemetry-exporter-otlp-common==0.66b1\n + opentelemetry-exporter-otlp-proto-common==1.45.1\n + opentelemetry-exporter-otlp-proto-http==1.45.1\n + opentelemetry-proto==1.45.1\n + opentelemetry-sdk==1.45.1\n + opentelemetry-semantic-conventions==0.66b1\n + packaging==26.3\n + pandas==3.0.6\n + platformdirs==4.12.4\n + protobuf==7.36.2\n + pyarrow==25.0.1\n + pydantic==2.13.5\n + pydantic-core==2.46.5\n + pygments==2.21.0\n + python-dateutil==2.9.0.post0\n + pyyaml==6.0.3\n + regex==2026.9.29\n + requests==2.34.2\n + rich==15.0.0\n + safetensors==0.8.0\n + setuptools==84.0.0\n + shellingham==1.5.4\n + six==1.17.0\n + sympy==1.14.0\n + tiktoken==0.14.0\n + tokenizers==0.23.2\n + torch==2.14.1\n + tqdm==4.70.1\n + transformers==5.19.0\n + typer==0.27.3\n + typing-extensions==4.16.0\n + typing-inspection==0.4.4\n + urllib3==2.8.0\n + wandb==0.30.0\n + xxhash==4.0.1",
+        "step": "install packages named in README",
+        "timed_out": false,
+        "wall_seconds": 1.918
+      }
+    ]
+  },
+  "environment_attempts": 1,
+  "commands": [
+    {
+      "id": "r1",
+      "command": "python data/shakespeare_char/prepare.py",
+      "scope": "setup",
+      "seed": null,
+      "note": "Download and encode tiny shakespeare, as in README.md:40",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 1.703,
+      "peak_rss_mb": 60.8,
+      "started": "2026-10-08T10:49:56.810159Z",
+      "stdout": {
+        "path": "runs/r1/stdout.txt",
+        "bytes": 201,
+        "sha256": "657fc3b022a1e8a5d7caab04144f098002ea0c672f420f9a13e63e6043017469"
+      },
+      "stderr": {
+        "path": "runs/r1/stderr.txt",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "files_written": 4
+    },
+    {
+      "id": "r2",
+      "command": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=2 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=10 --lr_decay_iters=10 --dropout=0.0",
+      "scope": "smoke",
+      "seed": null,
+      "note": "10 iterations to check that training starts on CPU",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 23.972,
+      "peak_rss_mb": 280.8,
+      "started": "2026-10-08T10:49:58.689726Z",
+      "stdout": {
+        "path": "runs/r2/stdout.txt",
+        "bytes": 2379,
+        "sha256": "46e88573e36aa7977205c3b28c19651c38ea3ac27b167b6f1e1d9e5cd4f4c298"
+      },
+      "stderr": {
+        "path": "runs/r2/stderr.txt",
+        "bytes": 498,
+        "sha256": "64f825757b61cbf5831711ddc9184f66ba27c6eaa19c6fd4e0953e70febcda2e"
+      },
+      "files_written": 0
+    },
+    {
+      "id": "r3",
+      "command": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0",
+      "scope": "full",
+      "seed": null,
+      "note": "README.md:85 CPU command, verbatim",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 236.484,
+      "peak_rss_mb": 194.6,
+      "started": "2026-10-08T10:50:22.799891Z",
+      "stdout": {
+        "path": "runs/r3/stdout.txt",
+        "bytes": 98136,
+        "sha256": "9790363e523f02d7d93cea17f288c807a5f937be3dbe13a749e811ba37cc9114"
+      },
+      "stderr": {
+        "path": "runs/r3/stderr.txt",
+        "bytes": 498,
+        "sha256": "64f825757b61cbf5831711ddc9184f66ba27c6eaa19c6fd4e0953e70febcda2e"
+      },
+      "files_written": 1
+    },
+    {
+      "id": "r4",
+      "command": "python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0",
+      "scope": "full",
+      "seed": null,
+      "note": "Same command again. train.py fixes the seed at 1337, so this checks run-to-run determinism, not seed variance",
+      "exit_code": 0,
+      "timed_out": false,
+      "wall_seconds": 255.827,
+      "peak_rss_mb": 196.3,
+      "started": "2026-10-08T10:54:19.428502Z",
+      "stdout": {
+        "path": "runs/r4/stdout.txt",
+        "bytes": 98288,
+        "sha256": "c100dc7c74fb4f4d015c56a7f8ddff8b7d31bb2bdeb5c19817a0e505990c9750"
+      },
+      "stderr": {
+        "path": "runs/r4/stderr.txt",
+        "bytes": 498,
+        "sha256": "64f825757b61cbf5831711ddc9184f66ba27c6eaa19c6fd4e0953e70febcda2e"
+      },
+      "files_written": 1
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "k1",
+      "verdict": "reproduced",
+      "scope": "full",
+      "counts_as_reproduction": true,
+      "headline": "Reproduced: loss claimed 1.88, measured 1.8857 (mean of 2 runs).",
+      "claim": {
+        "hi": null,
+        "hi_text": null,
+        "id": "c2",
+        "kind": "prose",
+        "line": 88,
+        "lo": null,
+        "lo_text": null,
+        "metric": "loss",
+        "percent": false,
+        "plus_minus": null,
+        "raw_metric": "loss",
+        "source": "README.md",
+        "text": "...This still runs in about ~3 minutes, but gets us a loss of only 1.88 and therefore also worse samples, but it's still good fun:",
+        "value": 1.88,
+        "value_text": "1.88"
+      },
+      "measured": [
+        {
+          "id": "m1.9",
+          "selector": "m1:val_loss:last@each",
+          "name": "val_loss",
+          "value": 1.8857,
+          "value_on_claim_scale": 1.8857,
+          "source": "runs/r3/stdout.txt",
+          "line": 2074,
+          "text": "step 2000: train loss 1.7648, val loss 1.8857",
+          "run": "r3"
+        },
+        {
+          "id": "m1.18",
+          "selector": "m1:val_loss:last@each",
+          "name": "val_loss",
+          "value": 1.8857,
+          "value_on_claim_scale": 1.8857,
+          "source": "runs/r4/stdout.txt",
+          "line": 2074,
+          "text": "step 2000: train loss 1.7648, val loss 1.8857",
+          "run": "r4"
+        }
+      ],
+      "stats": {
+        "max": 1.8857,
+        "mean": 1.8857,
+        "min": 1.8857,
+        "n": 2,
+        "std": 0.0
+      },
+      "tolerance": {
+        "abs": 0.0188,
+        "close_abs": 0.056400000000000006,
+        "description": "\u00b10.0188 (1% of the claimed value, default)"
+      },
+      "tolerance_reason": "The README states 1.88 informally (\"a loss of only 1.88\") for this CPU configuration, and evaluation averages only 20 batches (--eval_iters=20), so a 1% relative band is used rather than the 2-decimal rounding.",
+      "blocking": null,
+      "reasoning": [
+        "Claim: loss 1.88 (README.md line 88).",
+        "Measured over 2 runs: mean 1.8857, std 0, min 1.8857, max 1.8857.",
+        "Distance from the claim: 0.0057 (0.3% of the claim).",
+        "The measured value is worse than claimed (higher, and lower is better for this metric).",
+        "Tolerance: \u00b10.0188 (1% of the claimed value, default). Close band: \u00b10.0564.",
+        "Why this tolerance: The README states 1.88 informally (\"a loss of only 1.88\") for this CPU configuration, and evaluation averages only 20 batches (--eval_iters=20), so a 1% relative band is used rather than the 2-decimal rounding."
+      ]
+    }
+  ],
+  "deviations": [
+    "[e1] Installed packages named in README.md:22: torch numpy transformers datasets tiktoken wandb tqdm (7 without versions, so the latest compatible releases were used)"
+  ],
+  "observations": [
+    "The README sentence does not say train or val loss. It follows the paragraph about the noisier evaluation estimate, and the val loss at step 2000 is the value that matches, so val loss was compared. The train loss at step 2000 was 1.7648 in both runs (runs/r3/stdout.txt).",
+    "Both full runs printed identical train and val losses at every evaluation step, so on this CPU the run is deterministic for the seed fixed in train.py (1337). Seed-to-seed variance was not measured because the seed is hard-coded.",
+    "Wall times are not a speed measurement: the full runs shared the CPU with other CPU-bound jobs. The README says this configuration takes about 3 minutes."
+  ],
+  "not_checked": [
+    "11 other numbers found in the README were not compared: best validation loss 1.4697 (README.md:51), loss 2.85 (README.md:121), val loss 3.11 (README.md:121), train loss 3.11 (README.md:151), val loss 3.12 (README.md:151), train loss 2.85 (README.md:152) and 5 more.",
+    "The repo mentions GPUs or CUDA (6 CUDA-specific code or dependency lines, 3 device-availability checks or device flags, 10 README lines mentioning GPUs); this run was on macOS arm64 (Apple M4). Numerical results can differ across hardware and kernels.",
+    "10 data or weight download references were found; their checksums against the authors' copies were not verified unless a note below says so.",
+    "Whether the code matches the method described in the paper was not checked; this report only compares the code's output with the stated number.",
+    "The GPU claim (best validation loss 1.4697 on one A100, README.md:51, claim c1) needs a CUDA GPU and was not attempted.",
+    "The GPT-2 reproduction and finetuning numbers (c3 to c12) need OpenWebText and multi-GPU training and were not attempted."
+  ],
+  "claims_found": 12,
+  "metrics_extracted": 18,
+  "measured_value_ids": [
+    "m1.18",
+    "m1.9"
+  ],
+  "evidence": {
+    "log": "evidence.jsonl",
+    "entries": 13,
+    "head_sha256": "82eaef085dc6d5fadcba6d4edcc4a7af26509035421d18d4afaa787ba71d83c2",
+    "chain_ok": true,
+    "problems": []
+  }
+}
