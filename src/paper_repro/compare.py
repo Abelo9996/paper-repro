@@ -7,10 +7,10 @@ import statistics
 from typing import Any
 
 from .metrics import resolve_selectors
-from .study import Study, StudyError
+from .study import Study, StudyError, locked
 from .util import decimals, lower_is_better, metric_base, normalize_metric
 
-VERDICTS = ("reproduced", "close", "not_reproduced", "could_not_run")
+VERDICTS = ("reproduced", "close", "not_reproduced", "inconclusive", "could_not_run")
 RATIO_METRICS = {
     "accuracy",
     "top1_accuracy",
@@ -46,6 +46,15 @@ def _fmt(x: float | None) -> str:
     return f"{x:.6g}"
 
 
+def _pct(x: float) -> str:
+    if x >= 10:
+        return f"{x:.0f}%"
+    if x >= 1:
+        return f"{x:.1f}%"
+    return f"{x:.2g}%"
+
+
+@locked
 def add_claim(
     study: Study,
     *,
@@ -157,6 +166,7 @@ def _blocking_from_run(r: dict) -> dict:
     }
 
 
+@locked
 def compare_claim(
     study: Study,
     *,
@@ -325,7 +335,7 @@ def compare_claim(
             "The measured mean lies inside the claimed range." if lo != hi else "Exact match."
         )
     else:
-        rel = f" ({abs(signed) / abs(center) * 100:.2g}% of the claim)" if center else ""
+        rel = f" ({_pct(abs(signed) / abs(center) * 100)} of the claim)" if center else ""
         reasoning.append(f"Distance from the claim: {_fmt(dist)}{rel}.")
     if signed:
         lib = lower_is_better(claim["metric"])
@@ -388,31 +398,55 @@ def compare_claim(
             "At least one value was entered by hand rather than extracted from a recorded log."
         )
     if scope == "shortened":
+        kinds = sorted(scopes & {"shortened", "smoke"})
         notes = "; ".join(
             f"{r}: {st['runs'][r]['note']}" for r in run_ids if st["runs"].get(r, {}).get("note")
         )
+        cut = f" What was cut: {notes}." if notes else ""
+        if not notes and "shortened" in kinds:
+            cut = " What was cut: not stated."
         reasoning.append(
-            "This was a shortened run, so the result says nothing definitive about the full "
-            f"claim. What was shortened: {notes or 'not stated'}."
+            f"This was a {' and '.join(kinds)} run, so it cannot confirm or refute the full "
+            f"claim.{cut}"
         )
     counts = verdict == "reproduced" and scope == "full" and not has_unsourced
 
-    label = verdict.replace("_", " ")
     unit = "%" if claim_pct else ""
-    headline = (
-        f"{label.capitalize()}: {claim['raw_metric']} claimed {target_text}, measured {_fmt(mean)}{unit}"
-        + (f" (mean of {n} runs)" if n > 1 else "")
-        + "."
-    )
+    measured_text = f"{_fmt(mean)}{unit}" + (f" (mean of {n} runs)" if n > 1 else "")
+    if dist == 0:
+        gap = "inside the claimed range" if lo != hi else "an exact match"
+    else:
+        gap = f"{_fmt(dist)} away"
+    where = {
+        "reproduced": f"{gap}, within the tolerance of ±{_fmt(tol_abs)}",
+        "close": f"{gap}: outside the tolerance of ±{_fmt(tol_abs)} but inside the close band "
+        f"of ±{_fmt(close_abs)}",
+        "not_reproduced": f"{gap}, beyond the close band of ±{_fmt(close_abs)}",
+    }[verdict]
+    body = f"{claim['raw_metric']} claimed {target_text}, measured {measured_text}, {where}."
+    numbers_alone = None
     if scope == "shortened":
-        headline = f"Shortened run, {headline[0].lower()}{headline[1:]} Not a reproduction of the full claim."
-    if not math.isfinite(mean):
+        numbers_alone = verdict
+        verdict = "inconclusive"
+        kind = " and ".join(sorted(scopes & {"shortened", "smoke"}))
+        headline = (
+            f"Inconclusive ({kind} run): {body} A {kind} run cannot confirm or refute the "
+            "full claim; run the configuration the claim refers to with scope full."
+        )
+    else:
+        headline = f"{verdict.replace('_', ' ').capitalize()}: {body}"
+        if has_unsourced:
+            headline += (
+                " Includes a value typed in by hand, so it does not count as a reproduction."
+            )
+    if not math.isfinite(mean) and verdict != "inconclusive":
         verdict = "not_reproduced"
     return study.append(
         "compare",
         {
             **base,
             "verdict": verdict,
+            "numbers_alone": numbers_alone,
             "scope": scope,
             "counts_as_reproduction": counts,
             "blocking": None,

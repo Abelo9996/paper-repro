@@ -9,12 +9,13 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .study import Study, StudyError
+from .study import Study, StudyError, locked
 from .util import host_info, normalize_metric, now_iso
 
 NOTE_KINDS = ("observation", "deviation", "not_checked", "blocker")
 
 
+@locked
 def add_note(study: Study, text: str, kind: str = "observation") -> dict:
     if kind not in NOTE_KINDS:
         raise StudyError(f"kind must be one of: {', '.join(NOTE_KINDS)}")
@@ -89,6 +90,14 @@ def _key_packages(st: dict, env: dict | None) -> dict[str, str]:
     return dict(sorted(out.items()))
 
 
+def current_comparisons(comparisons: list[dict]) -> list[dict]:
+    """The latest comparison for each claim. Earlier ones stay in the log and the report."""
+    latest: dict[str, dict] = {}
+    for k in comparisons:
+        latest[k["claim"]["id"]] = k
+    return [k for k in comparisons if latest[k["claim"]["id"]] is k]
+
+
 def _not_checked(st: dict) -> list[str]:
     items: list[str] = []
     insp = st["inspect"] or {}
@@ -97,14 +106,15 @@ def _not_checked(st: dict) -> list[str]:
     if others:
         sample = ", ".join(
             f"{c['raw_metric']} {_num(c['value']) if c['value'] is not None else str(c['lo']) + '-' + str(c['hi'])}"
-            f" ({c['source']}:{c['line']})"
+            f" ({c['source']}" + (f":{c['line']}" if c.get("line") else "") + ")"
             for c in others[:6]
         )
         more = f" and {len(others) - 6} more" if len(others) > 6 else ""
+        where = "in the README and the paper" if st.get("papers") else "in the README"
         items.append(
-            f"{len(others)} other numbers found in the README were not compared: {sample}{more}."
+            f"{len(others)} other numbers found {where} were not compared: {sample}{more}."
         )
-    for k in st["comparisons"]:
+    for k in current_comparisons(st["comparisons"]):
         if k["scope"] == "shortened":
             items.append(
                 f"{k['claim']['raw_metric']} ({k['id']}) was measured on a shortened run only; "
@@ -146,7 +156,8 @@ def build_report(study: Study) -> dict:
     insp = st["inspect"]
     if not insp:
         raise StudyError("Nothing to report: run `paper-repro inspect` first.")
-    env = st["envs"][-1] if st["envs"] else None
+    # The environment the runs use: the last one that built, unless a later attempt replaced it.
+    env = st["active_env"] or (st["envs"][-1] if st["envs"] else None)
     repo = insp["repo"]
     runs = list(st["runs"].values())
     deviations = []
@@ -156,6 +167,13 @@ def build_report(study: Study) -> dict:
         if r["scope"] == "shortened" and r.get("note"):
             deviations.append(f"[{r['id']}] {r['scope']} run: {r['note']}")
     deviations.extend(n["text"] for n in st["notes"] if n["note_kind"] == "deviation")
+    current_ids = {k["id"] for k in current_comparisons(st["comparisons"])}
+    latest_for = {k["claim"]["id"]: k["id"] for k in st["comparisons"]}
+    superseded = {
+        k["id"]: latest_for[k["claim"]["id"]]
+        for k in st["comparisons"]
+        if k["id"] not in current_ids
+    }
     verify = study.verify()
     measured_ids = {v.get("id") for k in st["comparisons"] for v in k.get("measured", [])}
     return {
@@ -195,7 +213,8 @@ def build_report(study: Study) -> dict:
                 "command": (e.get("failure") or {}).get("command"),
                 "error": _error_gist((e.get("failure") or {}).get("error")),
             }
-            for e in st["envs"][:-1]
+            for e in st["envs"]
+            if not env or e["id"] != env["id"]
         ],
         "commands": [
             {
@@ -212,6 +231,7 @@ def build_report(study: Study) -> dict:
                 "stdout": {k: r["stdout"][k] for k in ("path", "bytes", "sha256")},
                 "stderr": {k: r["stderr"][k] for k in ("path", "bytes", "sha256")},
                 "files_written": r["files"]["written_count"],
+                "overlapped_with": r.get("overlapped_with") or [],
             }
             for r in runs
         ],
@@ -219,6 +239,8 @@ def build_report(study: Study) -> dict:
             {
                 "id": k["id"],
                 "verdict": k["verdict"],
+                "numbers_alone": k.get("numbers_alone"),
+                "superseded_by": superseded.get(k["id"]),
                 "scope": k["scope"],
                 "counts_as_reproduction": k["counts_as_reproduction"],
                 "headline": k["headline"],
@@ -272,12 +294,13 @@ VERDICT_WORDS = {
     "reproduced": "Reproduced",
     "close": "Close",
     "not_reproduced": "Not reproduced",
+    "inconclusive": "Inconclusive",
     "could_not_run": "Could not run",
 }
 
 
 def _overall(rep: dict) -> str:
-    ks = rep["comparisons"]
+    ks = [k for k in rep["comparisons"] if not k.get("superseded_by")]
     if not ks:
         return "No verdict: no claim was compared."
     if len(ks) == 1:
@@ -285,7 +308,7 @@ def _overall(rep: dict) -> str:
     counts: dict[str, int] = {}
     for k in ks:
         label = VERDICT_WORDS[k["verdict"]] + (
-            " (shortened run)" if k["scope"] == "shortened" else ""
+            " (shortened run)" if k["verdict"] == "inconclusive" else ""
         )
         counts[label] = counts.get(label, 0) + 1
     return (
@@ -330,10 +353,28 @@ def render_markdown(rep: dict) -> str:
         "",
     ]
 
-    for k in rep["comparisons"]:
+    ordered = [k for k in rep["comparisons"] if not k.get("superseded_by")] + [
+        k for k in rep["comparisons"] if k.get("superseded_by")
+    ]
+    for k in ordered:
         c = k["claim"]
-        L.append(f"## {VERDICT_WORDS[k['verdict']]}: {c['raw_metric']} ({k['id']})")
-        L.append("")
+        if k.get("superseded_by"):
+            L.append(
+                f"## Superseded by {k['superseded_by']}: {VERDICT_WORDS[k['verdict']].lower()}, "
+                f"{c['raw_metric']} ({k['id']})"
+            )
+            L.append("")
+            L.append(
+                f"A later comparison ({k['superseded_by']}) of the same claim is the verdict. "
+                "This one stays on the record."
+            )
+            L.append("")
+        else:
+            L.append(f"## {VERDICT_WORDS[k['verdict']]}: {c['raw_metric']} ({k['id']})")
+            L.append("")
+            if len(ordered) > 1:
+                L.append(f"**{k['headline']}**")
+                L.append("")
         where = c["source"] + (f", line {c['line']}" if c.get("line") else "")
         if c.get("table_header") and c.get("text"):
             L.append(f"The claim, from the table at {where}:")
@@ -342,6 +383,17 @@ def render_markdown(rep: dict) -> str:
             L.append("| " + " | ".join(header) + " |")
             L.append("|" + "---|" * len(header))
             L.append(c["text"].strip())
+        elif c.get("text") and c.get("kind") == "paper-table":
+            cell = ", ".join(
+                f'{label} "{c[key]}"'
+                for key, label in (("row", "row"), ("column", "column"))
+                if c.get(key)
+            )
+            L.append(
+                f"The claim ({c.get('table', 'table')}, {cell}), from {where}, as extracted from the PDF:"
+            )
+            L.append("")
+            L.append(f"> {c['text']}")
         elif c.get("text"):
             L.append(f"The claim, from {where}:")
             L.append("")
@@ -388,10 +440,17 @@ def render_markdown(rep: dict) -> str:
                 f"| {c['id']} | `{_md_escape(c['command'])}` | {c['scope']} | {seed} | {exit_s} | {_dur(c['wall_seconds'])} | {mem} |"
             )
         L.append("")
-        noted = [c for c in cmds if c.get("note")]
+        noted = [c for c in cmds if c.get("note") or c.get("overlapped_with")]
         if noted:
             for c in noted:
-                L.append(f"- {c['id']}: {c['note']}")
+                if c.get("note"):
+                    L.append(f"- {c['id']}: {c['note']}")
+                if c.get("overlapped_with"):
+                    L.append(
+                        f"- {c['id']} ran at the same time as {', '.join(c['overlapped_with'])} "
+                        "in the same checkout, so its wall time, memory and list of written "
+                        "files may include the other runs' work."
+                    )
             L.append("")
         L.append(
             "Full stdout and stderr for each command are in `runs/<id>/`, with SHA-256 hashes recorded "
@@ -430,7 +489,7 @@ def render_markdown(rep: dict) -> str:
         earlier = rep.get("earlier_environment_attempts") or []
         if earlier:
             L.append("")
-            L.append(f"Earlier attempts ({len(earlier)}), kept in the log:")
+            L.append(f"Other attempts ({len(earlier)}), kept in the log:")
             L.append("")
             for a in earlier:
                 if a["status"] == "ok":
@@ -480,6 +539,7 @@ def render_markdown(rep: dict) -> str:
 BUNDLE_FILES = ("report.md", "report.json", "evidence.jsonl", "lock.txt", "inspect.json")
 
 
+@locked
 def write_report(study: Study, bundle: str | None = None) -> dict:
     rep = build_report(study)
     md = render_markdown(rep)
@@ -498,6 +558,9 @@ def write_report(study: Study, bundle: str | None = None) -> dict:
                 shutil.copy2(src, dest / name)
         if study.runs_dir.exists():
             shutil.copytree(study.runs_dir, dest / "runs", dirs_exist_ok=True)
+        for txt in sorted((study.root / "paper").glob("*.txt")):
+            (dest / "paper").mkdir(exist_ok=True)
+            shutil.copy2(txt, dest / "paper" / txt.name)
         if (study.root / "env-inputs").exists():
             shutil.copytree(study.root / "env-inputs", dest / "env-inputs", dirs_exist_ok=True)
         out["bundle"] = str(dest)
@@ -505,6 +568,7 @@ def write_report(study: Study, bundle: str | None = None) -> dict:
     out["verdicts"] = [
         {"id": k["id"], "verdict": k["verdict"], "scope": k["scope"], "headline": k["headline"]}
         for k in rep["comparisons"]
+        if not k.get("superseded_by")
     ]
     return out
 

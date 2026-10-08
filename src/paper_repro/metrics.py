@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .study import Study, StudyError
+from .study import Study, StudyError, locked
 from .util import NAME_RE, NUM_RE, normalize_metric
 
 # name, optional separator words, then a value. Covers `accuracy: 0.913`, `acc=91.3%`,
@@ -172,6 +172,7 @@ def extract_from_file(path: Path, display: str) -> list[dict]:
     return extract_from_text(text, display)
 
 
+@locked
 def extract_metrics(
     study: Study,
     run_ids: list[str] | None = None,

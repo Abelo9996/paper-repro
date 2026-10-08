@@ -116,10 +116,11 @@ def test_shortened_run_never_counts(good_repo):
     run_command(study, "python train.py --epochs 1", scope="shortened", note="1 epoch instead of 3")
     m = extract_metrics(study)
     k = compare_claim(study, claim_id="c1", measured=[f"{m['id']}:test_accuracy:last"])
-    assert k["verdict"] == "reproduced"  # the number matches...
+    assert k["numbers_alone"] == "reproduced"  # the number matches...
+    assert k["verdict"] == "inconclusive"  # ...but a shortened run cannot settle the claim
     assert k["scope"] == "shortened"
-    assert k["counts_as_reproduction"] is False  # ...but it is not a reproduction of the claim
-    assert k["headline"].startswith("Shortened run")
+    assert k["counts_as_reproduction"] is False
+    assert k["headline"].startswith("Inconclusive (shortened run)")
     rep = json.loads(Path(write_report(study)["report_json"]).read_text())
     assert any("shortened" in d for d in rep["deviations"])
     assert any("shortened run only" in n for n in rep["not_checked"])
@@ -161,3 +162,56 @@ def test_python_override_is_a_deviation(good_repo):
     env = create_env(study, python=env_python())
     assert env["status"] == "ok"
     assert any("the repo asks for 3.10" in d for d in env["deviations"])
+
+
+@needs_uv
+def test_failed_env_attempt_keeps_the_working_env(good_repo):
+    entry = inspect_repo(str(good_repo))
+    study = Study(Path(entry["study"]))
+    e1 = create_env(study, python=env_python())
+    assert e1["status"] == "ok"
+    lock_before = (study.root / "lock.txt").read_text()
+    e2 = create_env(study, python="3.4")  # uv refuses this Python
+    assert e2["status"] == "failed"
+    assert e2["restored_env"] == "e1"
+    assert any("newer Python" in h for h in e2["hints"])
+    assert study.env_python().exists()
+    assert (study.root / "lock.txt").read_text() == lock_before
+    assert not (study.root / "env.prev").exists()
+    r = run_command(study, "python train.py")
+    assert r["exit_code"] == 0 and r["env_used"]
+    rep = json.loads(Path(write_report(study)["report_json"]).read_text())
+    assert rep["environment"]["id"] == "e1"
+    assert [a["id"] for a in rep["earlier_environment_attempts"]] == ["e2"]
+
+
+@needs_uv
+def test_recomparing_a_claim_supersedes_the_earlier_verdict(good_repo):
+    entry = inspect_repo(str(good_repo))
+    study = Study(Path(entry["study"]))
+    create_env(study, python=env_python())
+    run_command(study, "python train.py --epochs 1", scope="smoke")
+    run_command(study, "python train.py")
+    m = extract_metrics(study, run_ids=["r1"])
+    k1 = compare_claim(study, claim_id="c1", measured=[f"{m['id']}:test_accuracy:last"])
+    assert k1["verdict"] == "inconclusive"
+    m2 = extract_metrics(study, run_ids=["r2"])
+    k2 = compare_claim(study, claim_id="c1", measured=[f"{m2['id']}:test_accuracy:last"])
+    assert k2["verdict"] == "reproduced"
+    out = write_report(study)
+    assert [v["id"] for v in out["verdicts"]] == [k2["id"]]
+    assert out["overall"].startswith("Reproduced")
+    md = Path(out["report_md"]).read_text()
+    assert f"Superseded by {k2['id']}" in md
+
+
+def test_reinspecting_the_same_repo_spelled_differently(good_repo):
+    inspect_repo(str(good_repo))
+    again = inspect_repo(str(good_repo) + "/")
+    assert again["claims"]
+
+
+def test_failed_clone_leaves_no_empty_study(tmp_path):
+    with pytest.raises(Exception, match="Check the URL"):
+        inspect_repo(str(tmp_path / "missing-but-looks-like-url.git"))
+    assert not (tmp_path / "ws" / "missing-but-looks-like-url").exists()
