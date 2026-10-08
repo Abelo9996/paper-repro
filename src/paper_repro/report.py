@@ -47,6 +47,17 @@ def _md_escape(text: str) -> str:
     return text.replace("|", "\\|").replace("\n", " ")
 
 
+def _error_gist(error: str | None, max_chars: int = 300) -> str | None:
+    """The telling part of an error: from the first line that names the problem onward."""
+    if not error:
+        return None
+    lines = [ln.strip(" ×╰─▶│").strip() for ln in error.splitlines() if ln.strip()]
+    pat = re.compile(r"error|because|not found|no matching|unsatisfiable", re.I)
+    start = next((i for i, ln in enumerate(lines) if pat.search(ln)), max(0, len(lines) - 2))
+    text = " ".join(lines[start : start + 6])
+    return text[:max_chars] + ("..." if len(text) > max_chars else "")
+
+
 def _key_packages(st: dict, env: dict | None) -> dict[str, str]:
     if not env:
         return {}
@@ -139,8 +150,8 @@ def build_report(study: Study) -> dict:
     repo = insp["repo"]
     runs = list(st["runs"].values())
     deviations = []
-    for e in st["envs"]:
-        deviations.extend(f"[{e['id']}] {d}" for d in e.get("deviations", []))
+    if env:  # only the environment the runs used; earlier attempts are listed separately
+        deviations.extend(f"[{env['id']}] {d}" for d in env.get("deviations", []))
     for r in runs:
         if r["scope"] == "shortened" and r.get("note"):
             deviations.append(f"[{r['id']}] {r['scope']} run: {r['note']}")
@@ -175,6 +186,17 @@ def build_report(study: Study) -> dict:
             "steps": env.get("steps"),
         },
         "environment_attempts": len(st["envs"]),
+        "earlier_environment_attempts": [
+            {
+                "id": e["id"],
+                "status": e["status"],
+                "python_requested": e.get("python_requested"),
+                "failed_step": (e.get("failure") or {}).get("step"),
+                "command": (e.get("failure") or {}).get("command"),
+                "error": _error_gist((e.get("failure") or {}).get("error")),
+            }
+            for e in st["envs"][:-1]
+        ],
         "commands": [
             {
                 "id": r["id"],
@@ -405,10 +427,18 @@ def render_markdown(rep: dict) -> str:
             L.append("```")
             L.append((f.get("error") or "").strip()[-3000:])
             L.append("```")
-        if rep["environment_attempts"] > 1:
-            L.append(
-                f"- Environment attempts: {rep['environment_attempts']} (all recorded in the log)"
-            )
+        earlier = rep.get("earlier_environment_attempts") or []
+        if earlier:
+            L.append("")
+            L.append(f"Earlier attempts ({len(earlier)}), kept in the log:")
+            L.append("")
+            for a in earlier:
+                if a["status"] == "ok":
+                    L.append(f"- {a['id']}: succeeded, then replaced")
+                else:
+                    L.append(f"- {a['id']}: failed at {a['failed_step']}: `{a['command']}`")
+                    if a.get("error"):
+                        L.append(f"  `{_md_escape(a['error'])}`")
     else:
         L.append("No environment was created.")
     L.append("")

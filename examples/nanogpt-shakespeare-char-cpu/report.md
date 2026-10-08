@@ -9,7 +9,7 @@
 | Machine | macOS 26.2 arm64, Apple M4, 16.0 GB RAM |
 | Python | 3.12.13 |
 | Commands | 4 run, 4 exited 0, 8m 38s total |
-| Generated | 2026-10-08 10:58:49 UTC by paper-repro 0.1.0 |
+| Generated | 2026-10-08 12:01:26 UTC by paper-repro 0.1.0 |
 
 ## Reproduced: loss (k1)
 

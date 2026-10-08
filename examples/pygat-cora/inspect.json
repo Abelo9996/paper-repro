@@ -1,0 +1,175 @@
+{
+  "seq": 1,
+  "ts": "2026-10-08T11:11:05.766405Z",
+  "kind": "inspect",
+  "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+  "repo": {
+    "source": "Diego999/pyGAT",
+    "ref_requested": null,
+    "mode": "git-clone",
+    "url": "https://github.com/Diego999/pyGAT",
+    "clone": {
+      "argv": [
+        "git",
+        "clone",
+        "--depth",
+        "1",
+        "--quiet",
+        "https://github.com/Diego999/pyGAT",
+        "/private/tmp/pr-val2/paper-repro-runs/Diego999-pyGAT/repo"
+      ],
+      "exit_code": 0,
+      "wall_seconds": 0.5
+    },
+    "commit": "3664f2dc90cbf971564c0bf186dc794f12446d0c",
+    "dirty": false,
+    "commit_date": "2021-08-14T21:37:46-07:00"
+  },
+  "size": {
+    "files": 13,
+    "bytes": 7936858,
+    "truncated": false
+  },
+  "languages": [
+    {
+      "language": "Python",
+      "bytes": 17227
+    }
+  ],
+  "primary_language": "Python",
+  "dependency_files": [
+    {
+      "path": "requirements.txt",
+      "kind": "pip-requirements",
+      "parsed": {
+        "requirements": [
+          "numpy==1.15.1",
+          "scipy==1.1.0",
+          "torch==0.4.1.post2"
+        ],
+        "pinned": 3
+      }
+    }
+  ],
+  "python_hints": [
+    {
+      "source": "README.md:34",
+      "spec": "3.5",
+      "text": "pyGAT relies on Python 3.5 and PyTorch 0.4.1 (due to torch.sparse_coo_tensor)."
+    }
+  ],
+  "suggested_python": {
+    "version": "3.5",
+    "reason": "From README.md:34 (3.5). Interpreters this old may lack builds for this machine and modern wheels; a newer Python is a deviation and should be recorded as one."
+  },
+  "readmes": [
+    "README.md",
+    "data/cora/README"
+  ],
+  "readme_commands": [],
+  "readme_install_hints": [],
+  "entry_points": [
+    {
+      "path": "train.py",
+      "why": [
+        "name"
+      ],
+      "flags": [
+        "--no-cuda",
+        "--fastmode",
+        "--sparse",
+        "--seed",
+        "--epochs",
+        "--lr",
+        "--weight_decay",
+        "--hidden",
+        "--nb_heads",
+        "--dropout",
+        "--alpha",
+        "--patience"
+      ]
+    }
+  ],
+  "notebooks": [],
+  "downloads": [],
+  "gpu": {
+    "code": [
+      {
+        "source": "train.py:66",
+        "text": "model.cuda()"
+      },
+      {
+        "source": "train.py:67",
+        "text": "features = features.cuda()"
+      },
+      {
+        "source": "train.py:68",
+        "text": "adj = adj.cuda()"
+      },
+      {
+        "source": "train.py:69",
+        "text": "labels = labels.cuda()"
+      },
+      {
+        "source": "train.py:70",
+        "text": "idx_train = idx_train.cuda()"
+      },
+      {
+        "source": "train.py:71",
+        "text": "idx_val = idx_val.cuda()"
+      },
+      {
+        "source": "train.py:72",
+        "text": "idx_test = idx_test.cuda()"
+      },
+      {
+        "source": "visualize_graph.py:55",
+        "text": "inputs = torch.randn(100, 50).cuda()"
+      },
+      {
+        "source": "visualize_graph.py:56",
+        "text": "adj = torch.randn(100, 100).cuda()"
+      },
+      {
+        "source": "visualize_graph.py:58",
+        "text": "model = model.cuda()"
+      }
+    ],
+    "readme": [
+      {
+        "source": "README.md:24",
+        "text": "For the branch **master**, the training of the transductive learning on Cora task on a Titan Xp takes ~0.9 sec per epoch and 10-15 minutes for the whole training (~800 epochs). The final accuracy is b"
+      },
+      {
+        "source": "README.md:26",
+        "text": "A small note about initial sparse matrix operations of https://github.com/tkipf/pygcn: they have been removed. Therefore, the current model take ~7GB on GRAM."
+      },
+      {
+        "source": "README.md:30",
+        "text": "We develop a sparse version GAT using pytorch. There are numerically instability because of softmax function. Therefore, you need to initialize carefully. To use sparse version GAT, add flag `--sparse"
+      }
+    ],
+    "availability_checks": 2,
+    "summary": "10 CUDA-specific code or dependency lines, 2 device-availability checks or device flags, 3 README lines mentioning GPUs."
+  },
+  "claims": [
+    {
+      "metric": "final_accuracy",
+      "raw_metric": "final accuracy",
+      "value": null,
+      "value_text": null,
+      "lo": 84.2,
+      "hi": 85.3,
+      "lo_text": "84.2",
+      "hi_text": "85.3",
+      "plus_minus": null,
+      "percent": false,
+      "source": "README.md",
+      "line": 24,
+      "text": "...The final accuracy is between 84.2 and 85.3 (obtained on 5 different runs).",
+      "kind": "prose",
+      "id": "c1"
+    }
+  ],
+  "hash": "995608ffd94e615a6030b7702f30427690f7a574e97097ad86c3f7052e476f2e"
+}

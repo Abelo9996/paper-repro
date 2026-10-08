@@ -3,7 +3,7 @@
     "name": "paper-repro",
     "version": "0.1.0"
   },
-  "generated_at": "2026-10-08T10:58:49.040888Z",
+  "generated_at": "2026-10-08T12:01:26.183472Z",
   "repo": {
     "source": "https://github.com/karpathy/nanoGPT",
     "url": "https://github.com/karpathy/nanoGPT",
@@ -65,6 +65,7 @@
     ]
   },
   "environment_attempts": 1,
+  "earlier_environment_attempts": [],
   "commands": [
     {
       "id": "r1",

@@ -82,16 +82,28 @@ paper-repro-runs/karpathy-nanoGPT/
 
 ### CLI
 
+The second example, [examples/pygat-cora](examples/pygat-cora/report.md), was produced with
+these commands against [Diego999/pyGAT](https://github.com/Diego999/pyGAT), whose README says
+"The final accuracy is between 84.2 and 85.3 (obtained on 5 different runs)":
+
 ```bash
-paper-repro inspect https://github.com/Diego999/pyGAT
-paper-repro env --python 3.12 --unpin            # pins in requirements.txt have no wheels here
-paper-repro run --scope smoke --note "2 epochs" -- python train.py --epochs 2
-paper-repro run --seed 1 -- python train.py --seed 1
-paper-repro metrics --run r2 --run r3 --name accuracy
-paper-repro compare --claim c1 --measured 'm1:accuracy:last@each' --why "authors report a 5-run range"
-paper-repro note --kind not_checked "The sparse GAT variant was not run."
-paper-repro report
+paper-repro inspect Diego999/pyGAT
+paper-repro env                      # fails: README asks for Python 3.5, which uv does not support
+paper-repro env --python 3.12        # fails: torch==0.4.1.post2 has no wheel for this machine
+paper-repro env --python 3.12 --unpin
+paper-repro run --scope smoke --note "2 epochs ..." -- python train.py --epochs 2
+paper-repro run --seed 72 --timeout 10800 --note "..." -- "rm -f *.pkl && python train.py --seed 72"
+paper-repro run --seed 1 ...  &&  paper-repro run --seed 2 ...
+paper-repro metrics --run r2 --run r3 --run r4 --name accuracy
+paper-repro compare --claim c1 --measured 'm1:accuracy:last@each' --tol 0.1 --close-tol 1.0 \
+  --why "Cora's test split has 1000 nodes, so accuracy moves in steps of 0.1 points; ..."
+paper-repro note --kind not_checked "The README's range comes from 5 runs; 3 seeds were run here ..."
+paper-repro report --bundle examples/pygat-cora
 ```
+
+Result: test accuracy 84.2, 84.7 and 84.2 over three seeds, mean 84.37, inside the claimed range,
+verdict reproduced. Both failed environment attempts, the Python and unpinning deviations, and
+the fact that only 3 of the authors' 5 runs were repeated are all in the report.
 
 Every subcommand takes `--json`. `paper-repro status` shows what a study has recorded so far.
 

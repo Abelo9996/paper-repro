@@ -1,0 +1,7 @@
+Loading cora dataset...
+Epoch: 0001 loss_train: 1.9554 acc_train: 0.0571 loss_val: 1.9405 acc_val: 0.2867 time: 1.1638s
+Epoch: 0002 loss_train: 1.9384 acc_train: 0.2714 loss_val: 1.9313 acc_val: 0.5100 time: 1.2617s
+Optimization Finished!
+Total time elapsed: 2.4425s
+Loading 1th epoch
+Test set results: loss= 1.9320 accuracy= 0.4700
