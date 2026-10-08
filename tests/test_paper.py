@@ -82,3 +82,18 @@ def test_inspect_reports_linked_papers(tmp_path):
     readme.write_text(readme.read_text() + "\nPaper: https://arxiv.org/abs/1609.02907\n")
     entry = inspect_repo(str(repo))
     assert entry["papers"][0]["arxiv"] == "1609.02907"
+
+
+def test_pdf_tables_fall_back_to_the_text_reader_when_layout_fails(monkeypatch, tmp_path):
+    import paper_repro.paper as paper
+
+    def boom(*a, **k):
+        raise ValueError("unreadable content stream")
+
+    monkeypatch.setattr(paper, "page_words", boom)
+    info: dict = {}
+    by_page = paper._pdf_table_claims(tmp_path / "x.pdf", [GCN_PAGE], "arXiv:1609.02907", info)
+    assert info["table_reader"].startswith("text (the layout reader failed: ValueError")
+    cora = [c for c in by_page[1] if c["row"] == "GCN (this paper)" and c["column"] == "Cora"]
+    assert cora[0]["value"] == 81.5 and cora[0]["reader"] == "text"
+    assert cora[0]["confidence"] == "low"

@@ -1,0 +1,1072 @@
+{
+ "note": "Values transcribed by hand from the rendered PDF pages (arxiv.org/pdf/<id>, fetched 2026-10-08). null is an empty or dash cell. Row labels drop numeric citations like [18]. Rows with the same label, or with an empty label continuing the row above, are named 'label (Column value)' using the first setup column that tells them apart. split=dev tables were used while building the reader; split=held-out tables were transcribed before the reader was first run on them.",
+ "papers": [
+  {
+   "arxiv": "1706.03762",
+   "headline": [
+    [
+     "Table 2",
+     "Transformer (big)",
+     "BLEU EN-DE",
+     28.4
+    ]
+   ],
+   "tables": [
+    {
+     "table": "Table 2",
+     "page": 8,
+     "columns": [
+      "BLEU EN-DE",
+      "BLEU EN-FR"
+     ],
+     "rows": [
+      [
+       "ByteNet",
+       23.75,
+       null
+      ],
+      [
+       "Deep-Att + PosUnk",
+       null,
+       39.2
+      ],
+      [
+       "GNMT + RL",
+       24.6,
+       39.92
+      ],
+      [
+       "ConvS2S",
+       25.16,
+       40.46
+      ],
+      [
+       "MoE",
+       26.03,
+       40.56
+      ],
+      [
+       "Deep-Att + PosUnk Ensemble",
+       null,
+       40.4
+      ],
+      [
+       "GNMT + RL Ensemble",
+       26.3,
+       41.16
+      ],
+      [
+       "ConvS2S Ensemble",
+       26.36,
+       41.29
+      ],
+      [
+       "Transformer (base model)",
+       27.3,
+       38.1
+      ],
+      [
+       "Transformer (big)",
+       28.4,
+       41.8
+      ]
+     ]
+    }
+   ],
+   "split": "dev"
+  },
+  {
+   "arxiv": "1609.02907",
+   "headline": [
+    [
+     "Table 2",
+     "GCN (this paper)",
+     "Cora",
+     81.5
+    ]
+   ],
+   "tables": [
+    {
+     "table": "Table 2",
+     "page": 7,
+     "columns": [
+      "Citeseer",
+      "Cora",
+      "Pubmed",
+      "NELL"
+     ],
+     "rows": [
+      [
+       "ManiReg",
+       60.1,
+       59.5,
+       70.7,
+       21.8
+      ],
+      [
+       "SemiEmb",
+       59.6,
+       59.0,
+       71.1,
+       26.7
+      ],
+      [
+       "LP",
+       45.3,
+       68.0,
+       63.0,
+       26.5
+      ],
+      [
+       "DeepWalk",
+       43.2,
+       67.2,
+       65.3,
+       58.1
+      ],
+      [
+       "ICA",
+       69.1,
+       75.1,
+       73.9,
+       23.1
+      ],
+      [
+       "Planetoid*",
+       64.7,
+       75.7,
+       77.2,
+       61.9
+      ],
+      [
+       "GCN (this paper)",
+       70.3,
+       81.5,
+       79.0,
+       66.0
+      ],
+      [
+       "GCN (rand. splits)",
+       67.9,
+       80.1,
+       78.9,
+       58.4
+      ]
+     ]
+    }
+   ],
+   "split": "dev"
+  },
+  {
+   "arxiv": "1710.10903",
+   "headline": [
+    [
+     "Table 2",
+     "GAT (ours)",
+     "Cora",
+     83.0
+    ],
+    [
+     "Table 3",
+     "GAT (ours)",
+     "PPI",
+     0.973
+    ]
+   ],
+   "tables": [
+    {
+     "table": "Table 2",
+     "page": 8,
+     "columns": [
+      "Cora",
+      "Citeseer",
+      "Pubmed"
+     ],
+     "rows": [
+      [
+       "MLP",
+       55.1,
+       46.5,
+       71.4
+      ],
+      [
+       "ManiReg (Belkin et al., 2006)",
+       59.5,
+       60.1,
+       70.7
+      ],
+      [
+       "SemiEmb (Weston et al., 2012)",
+       59.0,
+       59.6,
+       71.7
+      ],
+      [
+       "LP (Zhu et al., 2003)",
+       68.0,
+       45.3,
+       63.0
+      ],
+      [
+       "DeepWalk (Perozzi et al., 2014)",
+       67.2,
+       43.2,
+       65.3
+      ],
+      [
+       "ICA (Lu & Getoor, 2003)",
+       75.1,
+       69.1,
+       73.9
+      ],
+      [
+       "Planetoid (Yang et al., 2016)",
+       75.7,
+       64.7,
+       77.2
+      ],
+      [
+       "Chebyshev (Defferrard et al., 2016)",
+       81.2,
+       69.8,
+       74.4
+      ],
+      [
+       "GCN (Kipf & Welling, 2017)",
+       81.5,
+       70.3,
+       79.0
+      ],
+      [
+       "MoNet (Monti et al., 2016)",
+       81.7,
+       null,
+       78.8
+      ],
+      [
+       "GCN-64*",
+       81.4,
+       70.9,
+       79.0
+      ],
+      [
+       "GAT (ours)",
+       83.0,
+       72.5,
+       79.0
+      ]
+     ]
+    },
+    {
+     "table": "Table 3",
+     "page": 8,
+     "columns": [
+      "PPI"
+     ],
+     "rows": [
+      [
+       "Random",
+       0.396
+      ],
+      [
+       "MLP",
+       0.422
+      ],
+      [
+       "GraphSAGE-GCN (Hamilton et al., 2017)",
+       0.5
+      ],
+      [
+       "GraphSAGE-mean (Hamilton et al., 2017)",
+       0.598
+      ],
+      [
+       "GraphSAGE-LSTM (Hamilton et al., 2017)",
+       0.612
+      ],
+      [
+       "GraphSAGE-pool (Hamilton et al., 2017)",
+       0.6
+      ],
+      [
+       "GraphSAGE*",
+       0.768
+      ],
+      [
+       "Const-GAT (ours)",
+       0.934
+      ],
+      [
+       "GAT (ours)",
+       0.973
+      ]
+     ]
+    }
+   ],
+   "split": "dev"
+  },
+  {
+   "arxiv": "1810.04805",
+   "headline": [
+    [
+     "Table 1",
+     "BERT LARGE",
+     "MNLI-m",
+     86.7
+    ],
+    [
+     "Table 1",
+     "BERT LARGE",
+     "Average",
+     82.1
+    ],
+    [
+     "Table 2",
+     "BERT LARGE (Ens.+TriviaQA)",
+     "Test F1",
+     93.2
+    ]
+   ],
+   "tables": [
+    {
+     "table": "Table 1",
+     "page": 6,
+     "columns": [
+      "MNLI-m",
+      "MNLI-mm",
+      "QQP",
+      "QNLI",
+      "SST-2",
+      "CoLA",
+      "STS-B",
+      "MRPC",
+      "RTE",
+      "Average"
+     ],
+     "rows": [
+      [
+       "Pre-OpenAI SOTA",
+       80.6,
+       80.1,
+       66.1,
+       82.3,
+       93.2,
+       35.0,
+       81.0,
+       86.0,
+       61.7,
+       74.0
+      ],
+      [
+       "BiLSTM+ELMo+Attn",
+       76.4,
+       76.1,
+       64.8,
+       79.8,
+       90.4,
+       36.0,
+       73.3,
+       84.9,
+       56.8,
+       71.0
+      ],
+      [
+       "OpenAI GPT",
+       82.1,
+       81.4,
+       70.3,
+       87.4,
+       91.3,
+       45.4,
+       80.0,
+       82.3,
+       56.0,
+       75.1
+      ],
+      [
+       "BERT BASE",
+       84.6,
+       83.4,
+       71.2,
+       90.5,
+       93.5,
+       52.1,
+       85.8,
+       88.9,
+       66.4,
+       79.6
+      ],
+      [
+       "BERT LARGE",
+       86.7,
+       85.9,
+       72.1,
+       92.7,
+       94.9,
+       60.5,
+       86.5,
+       89.3,
+       70.1,
+       82.1
+      ]
+     ]
+    },
+    {
+     "table": "Table 2",
+     "page": 7,
+     "columns": [
+      "Dev EM",
+      "Dev F1",
+      "Test EM",
+      "Test F1"
+     ],
+     "rows": [
+      [
+       "Human",
+       null,
+       null,
+       82.3,
+       91.2
+      ],
+      [
+       "#1 Ensemble - nlnet",
+       null,
+       null,
+       86.0,
+       91.7
+      ],
+      [
+       "#2 Ensemble - QANet",
+       null,
+       null,
+       84.5,
+       90.5
+      ],
+      [
+       "BiDAF+ELMo (Single)",
+       null,
+       85.6,
+       null,
+       85.8
+      ],
+      [
+       "R.M. Reader (Ensemble)",
+       81.2,
+       87.9,
+       82.3,
+       88.5
+      ],
+      [
+       "BERT BASE (Single)",
+       80.8,
+       88.5,
+       null,
+       null
+      ],
+      [
+       "BERT LARGE (Single)",
+       84.1,
+       90.9,
+       null,
+       null
+      ],
+      [
+       "BERT LARGE (Ensemble)",
+       85.8,
+       91.8,
+       null,
+       null
+      ],
+      [
+       "BERT LARGE (Sgl.+TriviaQA)",
+       84.2,
+       91.1,
+       85.1,
+       91.8
+      ],
+      [
+       "BERT LARGE (Ens.+TriviaQA)",
+       86.2,
+       92.2,
+       87.4,
+       93.2
+      ]
+     ]
+    }
+   ],
+   "split": "dev"
+  },
+  {
+   "arxiv": "1512.03385",
+   "headline": [
+    [
+     "Table 4",
+     "ResNet-152",
+     "top-5 err.",
+     4.49
+    ],
+    [
+     "Table 3",
+     "ResNet-152",
+     "top-1 err.",
+     21.43
+    ]
+   ],
+   "tables": [
+    {
+     "table": "Table 3",
+     "page": 6,
+     "columns": [
+      "top-1 err.",
+      "top-5 err."
+     ],
+     "rows": [
+      [
+       "VGG-16",
+       28.07,
+       9.33
+      ],
+      [
+       "GoogLeNet",
+       null,
+       9.15
+      ],
+      [
+       "PReLU-net",
+       24.27,
+       7.38
+      ],
+      [
+       "plain-34",
+       28.54,
+       10.02
+      ],
+      [
+       "ResNet-34 A",
+       25.03,
+       7.76
+      ],
+      [
+       "ResNet-34 B",
+       24.52,
+       7.46
+      ],
+      [
+       "ResNet-34 C",
+       24.19,
+       7.4
+      ],
+      [
+       "ResNet-50",
+       22.85,
+       6.71
+      ],
+      [
+       "ResNet-101",
+       21.75,
+       6.05
+      ],
+      [
+       "ResNet-152",
+       21.43,
+       5.71
+      ]
+     ]
+    },
+    {
+     "table": "Table 4",
+     "page": 6,
+     "columns": [
+      "top-1 err.",
+      "top-5 err."
+     ],
+     "rows": [
+      [
+       "VGG (ILSVRC'14)",
+       null,
+       8.43
+      ],
+      [
+       "GoogLeNet (ILSVRC'14)",
+       null,
+       7.89
+      ],
+      [
+       "VGG (v5)",
+       24.4,
+       7.1
+      ],
+      [
+       "PReLU-net",
+       21.59,
+       5.71
+      ],
+      [
+       "BN-inception",
+       21.99,
+       5.81
+      ],
+      [
+       "ResNet-34 B",
+       21.84,
+       5.71
+      ],
+      [
+       "ResNet-34 C",
+       21.53,
+       5.6
+      ],
+      [
+       "ResNet-50",
+       20.74,
+       5.25
+      ],
+      [
+       "ResNet-101",
+       19.87,
+       4.6
+      ],
+      [
+       "ResNet-152",
+       19.38,
+       4.49
+      ]
+     ]
+    },
+    {
+     "table": "Table 5",
+     "page": 6,
+     "columns": [
+      "top-5 err. (test)"
+     ],
+     "rows": [
+      [
+       "VGG (ILSVRC'14)",
+       7.32
+      ],
+      [
+       "GoogLeNet (ILSVRC'14)",
+       6.66
+      ],
+      [
+       "VGG (v5)",
+       6.8
+      ],
+      [
+       "PReLU-net",
+       4.94
+      ],
+      [
+       "BN-inception",
+       4.82
+      ],
+      [
+       "ResNet (ILSVRC'15)",
+       3.57
+      ]
+     ]
+    }
+   ],
+   "split": "dev"
+  },
+  {
+   "arxiv": "2010.11929",
+   "split": "held-out",
+   "headline": [
+    [
+     "Table 2",
+     "ImageNet",
+     "Ours-JFT (ViT-H/14)",
+     88.55
+    ]
+   ],
+   "tables": [
+    {
+     "table": "Table 2",
+     "page": 6,
+     "columns": [
+      "Ours-JFT (ViT-H/14)",
+      "Ours-JFT (ViT-L/16)",
+      "Ours-I21k (ViT-L/16)",
+      "BiT-L (ResNet152x4)",
+      "Noisy Student (EfficientNet-L2)"
+     ],
+     "rows": [
+      [
+       "ImageNet",
+       88.55,
+       87.76,
+       85.3,
+       87.54,
+       88.4
+      ],
+      [
+       "ImageNet ReaL",
+       90.72,
+       90.54,
+       88.62,
+       90.54,
+       90.55
+      ],
+      [
+       "CIFAR-10",
+       99.5,
+       99.42,
+       99.15,
+       99.37,
+       null
+      ],
+      [
+       "CIFAR-100",
+       94.55,
+       93.9,
+       93.25,
+       93.51,
+       null
+      ],
+      [
+       "Oxford-IIIT Pets",
+       97.56,
+       97.32,
+       94.67,
+       96.62,
+       null
+      ],
+      [
+       "Oxford Flowers-102",
+       99.68,
+       99.74,
+       99.61,
+       99.63,
+       null
+      ],
+      [
+       "VTAB (19 tasks)",
+       77.63,
+       76.28,
+       72.72,
+       76.29,
+       null
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "arxiv": "1608.06993",
+   "split": "held-out",
+   "headline": [
+    [
+     "Table 2",
+     "DenseNet-BC (k = 24)",
+     "C10+",
+     3.62
+    ],
+    [
+     "Table 3",
+     "DenseNet-264",
+     "top-1 single-crop",
+     22.15
+    ]
+   ],
+   "tables": [
+    {
+     "table": "Table 2",
+     "page": 5,
+     "columns": [
+      "C10",
+      "C10+",
+      "C100",
+      "C100+",
+      "SVHN"
+     ],
+     "rows": [
+      [
+       "Network in Network",
+       10.41,
+       8.81,
+       35.68,
+       null,
+       2.35
+      ],
+      [
+       "All-CNN",
+       9.08,
+       7.25,
+       null,
+       33.71,
+       null
+      ],
+      [
+       "Deeply Supervised Net",
+       9.69,
+       7.97,
+       null,
+       34.57,
+       1.92
+      ],
+      [
+       "Highway Network",
+       null,
+       7.72,
+       null,
+       32.39,
+       null
+      ],
+      [
+       "FractalNet",
+       10.18,
+       5.22,
+       35.34,
+       23.3,
+       2.01
+      ],
+      [
+       "with Dropout/Drop-path",
+       7.33,
+       4.6,
+       28.2,
+       23.73,
+       1.87
+      ],
+      [
+       "ResNet",
+       null,
+       6.61,
+       null,
+       null,
+       null
+      ],
+      [
+       "ResNet (reported by [13])",
+       13.63,
+       6.41,
+       44.74,
+       27.22,
+       2.01
+      ],
+      [
+       "ResNet with Stochastic Depth (Depth 110)",
+       11.66,
+       5.23,
+       37.8,
+       24.58,
+       1.75
+      ],
+      [
+       "ResNet with Stochastic Depth (Depth 1202)",
+       null,
+       4.91,
+       null,
+       null,
+       null
+      ],
+      [
+       "Wide ResNet (Depth 16)",
+       null,
+       4.81,
+       null,
+       22.07,
+       null
+      ],
+      [
+       "Wide ResNet (Depth 28)",
+       null,
+       4.17,
+       null,
+       20.5,
+       null
+      ],
+      [
+       "with Dropout",
+       null,
+       null,
+       null,
+       null,
+       1.64
+      ],
+      [
+       "ResNet (pre-activation) (Depth 164)",
+       11.26,
+       5.46,
+       35.58,
+       24.33,
+       null
+      ],
+      [
+       "ResNet (pre-activation) (Depth 1001)",
+       10.56,
+       4.62,
+       33.47,
+       22.71,
+       null
+      ],
+      [
+       "DenseNet (k = 12) (Depth 40)",
+       7.0,
+       5.24,
+       27.55,
+       24.42,
+       1.79
+      ],
+      [
+       "DenseNet (k = 12) (Depth 100)",
+       5.77,
+       4.1,
+       23.79,
+       20.2,
+       1.67
+      ],
+      [
+       "DenseNet (k = 24)",
+       5.83,
+       3.74,
+       23.42,
+       19.25,
+       1.59
+      ],
+      [
+       "DenseNet-BC (k = 12)",
+       5.92,
+       4.51,
+       24.15,
+       22.27,
+       1.76
+      ],
+      [
+       "DenseNet-BC (k = 24)",
+       5.19,
+       3.62,
+       19.64,
+       17.6,
+       1.74
+      ],
+      [
+       "DenseNet-BC (k = 40)",
+       null,
+       3.46,
+       null,
+       17.18,
+       null
+      ]
+     ]
+    },
+    {
+     "table": "Table 3",
+     "page": 6,
+     "columns": [
+      "top-1 single-crop",
+      "top-1 10-crop",
+      "top-5 single-crop",
+      "top-5 10-crop"
+     ],
+     "rows": [
+      [
+       "DenseNet-121",
+       25.02,
+       23.61,
+       7.71,
+       6.66
+      ],
+      [
+       "DenseNet-169",
+       23.8,
+       22.08,
+       6.85,
+       5.92
+      ],
+      [
+       "DenseNet-201",
+       22.58,
+       21.46,
+       6.34,
+       5.54
+      ],
+      [
+       "DenseNet-264",
+       22.15,
+       20.8,
+       6.12,
+       5.29
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "arxiv": "1802.05365",
+   "split": "held-out",
+   "headline": [
+    [
+     "Table 1",
+     "SQuAD",
+     "ELMo + baseline",
+     85.8
+    ]
+   ],
+   "tables": [
+    {
+     "table": "Table 1",
+     "page": 5,
+     "columns": [
+      "Previous SOTA",
+      "Our baseline",
+      "ELMo + baseline",
+      "Increase absolute",
+      "Increase relative"
+     ],
+     "rows": [
+      [
+       "SQuAD",
+       84.4,
+       81.1,
+       85.8,
+       4.7,
+       24.9
+      ],
+      [
+       "SNLI",
+       88.6,
+       88.0,
+       88.7,
+       0.7,
+       5.8
+      ],
+      [
+       "SRL",
+       81.7,
+       81.4,
+       84.6,
+       3.2,
+       17.2
+      ],
+      [
+       "Coref",
+       67.2,
+       67.2,
+       70.4,
+       3.2,
+       9.8
+      ],
+      [
+       "NER",
+       91.93,
+       90.15,
+       92.22,
+       2.06,
+       21
+      ],
+      [
+       "SST-5",
+       53.7,
+       51.4,
+       54.7,
+       3.3,
+       6.8
+      ]
+     ]
+    }
+   ]
+  }
+ ]
+}
