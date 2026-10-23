@@ -1,0 +1,62 @@
+[
+ {
+  "repo": "greydanus/mnist1d",
+  "where": "paper page 1 (link)",
+  "text": "https://github.com/greydanus/mnist1d/blob/master/notebooks/building-mnist1d.ipynb"
+ },
+ {
+  "repo": "greydanus/mnist1d",
+  "where": "paper page 2 (link)",
+  "text": "https://github.com/greydanus/mnist1d/blob/master/notebooks/mnist1d-classification.ipynb"
+ },
+ {
+  "repo": "greydanus/mnist1d",
+  "where": "paper page 2 (link)",
+  "text": "https://github.com/greydanus/mnist1d"
+ },
+ {
+  "repo": "greydanus/mnist1d",
+  "where": "paper page 2 (link)",
+  "text": "https://github.com/greydanus/mnist1d"
+ },
+ {
+  "repo": "greydanus/mnist1d",
+  "where": "paper page 3 (link)",
+  "text": "https://github.com/greydanus/mnist1d/blob/master/notebooks/mnist1d-classification.ipynb"
+ },
+ {
+  "repo": "greydanus/mnist1d",
+  "where": "paper page 4 (link)",
+  "text": "https://github.com/greydanus/mnist1d/blob/master/notebooks/tsne-mnist-vs-mnist1d.ipynb"
+ },
+ {
+  "repo": "greydanus/mnist1d",
+  "where": "paper page 5 (link)",
+  "text": "https://github.com/greydanus/mnist1d/blob/master/notebooks/lottery-tickets.ipynb"
+ },
+ {
+  "repo": "greydanus/mnist1d",
+  "where": "paper page 5 (link)",
+  "text": "https://github.com/greydanus/mnist1d/blob/master/notebooks/deep-double-descent.ipynb"
+ },
+ {
+  "repo": "greydanus/mnist1d",
+  "where": "paper page 6 (link)",
+  "text": "https://github.com/greydanus/mnist1d/blob/master/notebooks/metalearn-learn-rate.ipynb"
+ },
+ {
+  "repo": "greydanus/mnist1d",
+  "where": "paper page 7 (link)",
+  "text": "https://github.com/greydanus/mnist1d/blob/master/notebooks/metalearn-activation-function.ipynb"
+ },
+ {
+  "repo": "greydanus/mnist1d",
+  "where": "paper page 7 (link)",
+  "text": "https://github.com/greydanus/mnist1d/blob/master/notebooks/self-supervised-learning.ipynb"
+ },
+ {
+  "repo": "greydanus/mnist1d",
+  "where": "paper page 8 (link)",
+  "text": "https://github.com/greydanus/mnist1d/blob/master/notebooks/benchmark-pooling.ipynb"
+ }
+]

@@ -1,0 +1,23 @@
+{
+ "total_count": 416,
+ "items": [
+  {
+   "full_name": "tkipf/pygcn",
+   "stargazers_count": 5397,
+   "description": "Graph Convolutional Networks in PyTorch",
+   "html_url": "https://github.com/tkipf/pygcn"
+  },
+  {
+   "full_name": "stellargraph/stellargraph",
+   "stargazers_count": 3064,
+   "description": "StellarGraph - Machine Learning on Graphs",
+   "html_url": "https://github.com/stellargraph/stellargraph"
+  },
+  {
+   "full_name": "thunlp/OpenNE",
+   "stargazers_count": 1705,
+   "description": "An Open-Source Package for Network Embedding (NE)",
+   "html_url": "https://github.com/thunlp/OpenNE"
+  }
+ ]
+}
