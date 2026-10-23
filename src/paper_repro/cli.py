@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from . import __version__, guide
+from .compare import REASONS
 from .study import StudyError, resolve_study
 
 EPILOG = """\
@@ -148,6 +149,7 @@ def cmd_run(args) -> int:
         scope=args.scope,
         note=args.note,
         use_env=not args.no_env,
+        authored=args.authored,
     )
 
     def human(e) -> str:
@@ -155,6 +157,11 @@ def cmd_run(args) -> int:
         lines = [
             f"{e['id']}: {status} in {e['wall_seconds']:.1f}s, peak memory {e.get('peak_rss_mb')} MB, "
             f"{e['files']['written_count']} files written",
+            *(
+                [f"origin: written by the agent ({e['origin_reason']})"]
+                if e.get("origin") == "authored"
+                else []
+            ),
             f"stdout: {e['stdout']['path']} ({e['stdout']['bytes']} bytes)",
             f"stderr: {e['stderr']['path']} ({e['stderr']['bytes']} bytes)",
         ]
@@ -268,7 +275,7 @@ def cmd_paper(args) -> int:
 
 
 def cmd_compare(args) -> int:
-    from .compare import compare_claim
+    from .compare import compare_claim, verdict_label
 
     study = resolve_study(args.study, args.workspace)
     e = compare_claim(
@@ -283,12 +290,13 @@ def cmd_compare(args) -> int:
         why=args.why,
         could_not_run=args.could_not_run,
         blocking=args.blocking,
+        reason=args.reason,
     )
 
     def human(e) -> str:
         return "\n".join(
             [
-                f"{e['id']}: {e['verdict'].replace('_', ' ').upper()}",
+                f"{e['id']}: {verdict_label(e)}",
                 e["headline"],
                 *[f"  - {r}" for r in e["reasoning"]],
                 f"next: {e['next']}",
@@ -504,6 +512,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     s.add_argument("--note", help="what this run is, and for shortened runs what was cut")
     s.add_argument("--no-env", action="store_true", help="run without activating the study env")
+    s.add_argument(
+        "--authored",
+        action="store_true",
+        help="the command or a script it runs was written by you, not shipped by the repo; its "
+        "numbers are labeled REIMPLEMENTED, never REPRODUCED (python -c and untracked scripts are "
+        "detected automatically)",
+    )
     s.set_defaults(func=cmd_run)
 
     s = sub.add_parser(
@@ -571,6 +586,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--could-not-run", action="store_true", help="record that no number could be measured"
     )
     s.add_argument("--blocking", help="env or run id that blocked (default: the latest failure)")
+    s.add_argument(
+        "--reason",
+        choices=list(REASONS),
+        help="why nothing could be measured (default: read from the failing step)",
+    )
     s.set_defaults(func=cmd_compare)
 
     s = sub.add_parser(

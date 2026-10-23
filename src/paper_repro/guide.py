@@ -129,6 +129,12 @@ def after_compare(e: dict) -> str:
             "is feasible; otherwise write the report and say plainly that the claim was not tested "
             "at full size."
         )
+    if e["verdict"] == "reimplemented":
+        return (
+            "The number came from a command you wrote, so it is labeled REIMPLEMENTED. Say so to "
+            "the user in those words; never call it a reproduction. Then write the report: "
+            "`paper-repro report` (MCP write_report)."
+        )
     return (
         "Record anything you did not verify with `paper-repro note --kind not_checked` (MCP "
         "add_note), then write the report: `paper-repro report` (MCP write_report)."

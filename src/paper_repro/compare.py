@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 import statistics
 from typing import Any
 
@@ -10,7 +11,84 @@ from .metrics import resolve_selectors
 from .study import Study, StudyError, locked
 from .util import decimals, lower_is_better, metric_base, normalize_metric
 
-VERDICTS = ("reproduced", "close", "not_reproduced", "inconclusive", "could_not_run")
+VERDICTS = (
+    "reproduced",
+    "close",
+    "not_reproduced",
+    "inconclusive",
+    "reimplemented",
+    "could_not_run",
+)
+# What a person sees. "close" is shown as PARTIAL; a number from a command the agent wrote is
+# REIMPLEMENTED whatever it measured, so it can never be shown as a plain REPRODUCED.
+LABELS = {
+    "reproduced": "REPRODUCED",
+    "close": "PARTIAL",
+    "not_reproduced": "NOT REPRODUCED",
+    "inconclusive": "INCONCLUSIVE",
+    "reimplemented": "REIMPLEMENTED",
+    "could_not_run": "COULD NOT RUN",
+}
+MATCH_WORDS = {
+    "reproduced": "numbers match",
+    "close": "numbers close",
+    "not_reproduced": "numbers differ",
+}
+REASONS = {
+    "gpu_required": "GPU required",
+    "data_unavailable": "data unavailable",
+    "broken_deps": "dependencies do not install",
+    "no_command": "no command that produces the number",
+    "timeout": "time limit reached",
+    "run_failed": "the run failed",
+    "other": "see the blocking error",
+}
+GPU_ERROR_RE = re.compile(
+    r"Torch not compiled with CUDA|no CUDA GPUs|CUDA driver|cudaGetDevice|nvidia-smi|libcuda|"
+    r"NVIDIA driver|requires a GPU|CUDA_HOME|cuda\.is_available\(\) is False|"
+    r"Found no NVIDIA|No CUDA runtime|CUDA error|device-side|cupy|triton",
+    re.IGNORECASE,
+)
+DATA_ERROR_RE = re.compile(
+    r"HTTP Error 4\d\d|404 Not Found|403 Forbidden|urlopen error|Name or service not known|"
+    r"nodename nor servname|ConnectionError|Max retries exceeded|Dataset not found|"
+    r"requires you to accept|gated repo|"
+    r"(?:FileNotFoundError|No such file or directory)[^\n]*"
+    r"(?:data|\.csv|\.np[yz]|\.pkl|\.pt|\.h5|\.json|\.txt|\.bin|\.zip|\.tar)",
+    re.IGNORECASE,
+)
+
+
+def verdict_label(k: dict) -> str:
+    """The verdict as shown on reports, cards and badges, with the qualifier that keeps it honest:
+    REIMPLEMENTED (numbers match), COULD NOT RUN (GPU required), INCONCLUSIVE (smoke check)."""
+    v = k["verdict"]
+    label = LABELS.get(v, v.upper())
+    if v == "reimplemented" and k.get("numbers_alone") in MATCH_WORDS:
+        return f"{label} ({MATCH_WORDS[k['numbers_alone']]})"
+    if v == "could_not_run" and k.get("reason") in REASONS:
+        return f"{label} ({REASONS[k['reason']]})"
+    if v == "inconclusive":
+        return f"{label} ({'reduced-scale smoke check' if k.get('smoke') else 'shortened run'})"
+    return label
+
+
+def classify_blocking(block: dict | None) -> str:
+    """Why nothing was measured, from the step that failed."""
+    if not block:
+        return "other"
+    if block.get("kind") == "env":
+        return "broken_deps"
+    error = block.get("error") or ""
+    if GPU_ERROR_RE.search(error):
+        return "gpu_required"
+    if block.get("timed_out"):
+        return "timeout"
+    if DATA_ERROR_RE.search(error):
+        return "data_unavailable"
+    return "run_failed"
+
+
 RATIO_METRICS = {
     "accuracy",
     "top1_accuracy",
@@ -180,7 +258,12 @@ def compare_claim(
     why: str | None = None,
     could_not_run: bool = False,
     blocking: str | None = None,
+    reason: str | None = None,
 ) -> dict:
+    """``reason`` says why nothing could be measured (a key of REASONS); by default it is read
+    from the failing step: an env failure is broken_deps, a CUDA error gpu_required, and so on."""
+    if reason is not None and reason not in REASONS:
+        raise StudyError(f"reason must be one of: {', '.join(REASONS)}")
     st = study.state()
     claim = st["claims"].get(claim_id)
     if not claim:
@@ -223,19 +306,23 @@ def compare_claim(
             reasoning.append(f"{what} {block['id']} {how}: `{block.get('command')}`.")
         else:
             reasoning.append("Marked as could not run by the agent; no failing step was recorded.")
+        why_not = reason or classify_blocking(block)
+        reasoning.append(f"Reason: {REASONS[why_not]}.")
         reasoning.append("No number was measured, so the claim was neither confirmed nor refuted.")
         return study.append(
             "compare",
             {
                 **base,
                 "verdict": "could_not_run",
+                "reason": why_not,
                 "scope": None,
                 "counts_as_reproduction": False,
                 "blocking": block,
                 "measured": [],
                 "stats": None,
                 "reasoning": reasoning,
-                "headline": f"Could not run: {claim['raw_metric']} {target_text} was not measured.",
+                "headline": f"Could not run ({REASONS[why_not]}): {claim['raw_metric']} "
+                f"{target_text} was not measured.",
             },
         )
 
@@ -414,7 +501,14 @@ def compare_claim(
             f"This was a {' and '.join(kinds)} run, so it cannot confirm or refute the full "
             f"claim.{cut}"
         )
-    counts = verdict == "reproduced" and scope == "full" and not has_unsourced
+    authored = [r for r in run_ids if r in st["runs"] and st["runs"][r].get("origin") == "authored"]
+    for r in authored:
+        reasoning.append(
+            f"Run {r} ran a command written by the agent, not one the repo ships "
+            f"({st['runs'][r].get('origin_reason') or 'marked as authored'}). The number checks "
+            "a reimplementation, not the authors' code path."
+        )
+    counts = verdict == "reproduced" and scope == "full" and not has_unsourced and not authored
 
     unit = "%" if claim_pct else ""
     measured_text = f"{_fmt(mean)}{unit}" + (f" (mean of {n} runs)" if n > 1 else "")
@@ -430,6 +524,7 @@ def compare_claim(
     }[verdict]
     body = f"{claim['raw_metric']} claimed {target_text}, measured {measured_text}, {where}."
     numbers_alone = None
+    smoke = "smoke" in scopes
     if scope == "shortened":
         numbers_alone = verdict
         verdict = "inconclusive"
@@ -438,13 +533,21 @@ def compare_claim(
             f"Inconclusive ({kind} run): {body} A {kind} run cannot confirm or refute the "
             "full claim; run the configuration the claim refers to with scope full."
         )
+    elif authored:
+        numbers_alone = verdict
+        verdict = "reimplemented"
+        headline = (
+            f"Reimplemented ({MATCH_WORDS[numbers_alone]}): {body} The command was written by "
+            "the agent, so this checks a reimplementation, not the repo's own code path."
+        )
     else:
-        headline = f"{verdict.replace('_', ' ').capitalize()}: {body}"
+        word = "Partial (close)" if verdict == "close" else verdict.replace("_", " ").capitalize()
+        headline = f"{word}: {body}"
         if has_unsourced:
             headline += (
                 " Includes a value typed in by hand, so it does not count as a reproduction."
             )
-    if not math.isfinite(mean) and verdict != "inconclusive":
+    if not math.isfinite(mean) and verdict not in ("inconclusive", "reimplemented"):
         verdict = "not_reproduced"
     return study.append(
         "compare",
@@ -453,6 +556,8 @@ def compare_claim(
             "verdict": verdict,
             "numbers_alone": numbers_alone,
             "scope": scope,
+            "smoke": smoke,
+            "origin": "authored" if authored else "repo",
             "counts_as_reproduction": counts,
             "blocking": None,
             "measured": values,

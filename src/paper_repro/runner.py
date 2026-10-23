@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import platform
+import re
 import shutil
 import signal
 import subprocess
@@ -13,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from .study import Study, StudyError
-from .util import SKIP_DIRS, now_iso, sha256_file, tail
+from .util import SKIP_DIRS, now_iso, run_capture, sha256_file, tail
 
 MAX_SNAPSHOT_FILES = 200_000
 HASH_LIMIT = 50 * 2**20
@@ -102,6 +103,39 @@ def _kill_tree(pgid: int, grace: float = 5.0) -> int:
     return len(alive)
 
 
+INLINE_CODE_RE = re.compile(r"(?:^|[\s;&|(])(?:python[\d.]*|python3)\s+(?:-\w+\s+)*-c\s")
+SCRIPT_RE = re.compile(r"[\w./-]+\.(?:py|sh|ipynb|R|jl)\b")
+
+
+def command_origin(repo: Path, command: str, authored: bool = False) -> tuple[str, str | None]:
+    """("repo", None) for a command that only runs code the repo ships, else ("authored", why).
+
+    Inline Python and scripts that are untracked or modified in the checkout mean the agent wrote
+    part of what produced the number."""
+    if authored:
+        return "authored", "marked as written by the agent"
+    if INLINE_CODE_RE.search(command):
+        return "authored", "the command runs inline code (python -c) that the repo does not ship"
+    if not (repo / ".git").exists():
+        return "repo", None
+    changed = run_capture(
+        ["git", "status", "--porcelain", "--untracked-files=all"], cwd=repo, timeout=60
+    )
+    if changed["exit_code"] != 0:
+        return "repo", None
+    touched = {}
+    for line in changed["stdout"].splitlines():
+        if len(line) > 3:
+            touched[line[3:].strip().strip('"')] = line[:2]
+    for m in SCRIPT_RE.finditer(command):
+        rel = m.group(0).removeprefix("./")
+        for path, code in touched.items():
+            if path == rel or path.endswith("/" + rel):
+                what = "is not part of the repo" if "?" in code else "was modified after checkout"
+                return "authored", f"{path} {what}"
+    return "repo", None
+
+
 def run_command(
     study: Study,
     command: str,
@@ -114,11 +148,19 @@ def run_command(
     scope: str = "full",
     note: str | None = None,
     use_env: bool = True,
+    authored: bool = False,
 ) -> dict:
-    """Run ``command`` through the shell in the checkout, inside the study env."""
+    """Run ``command`` through the shell in the checkout, inside the study env.
+
+    ``authored`` says the command (or a script it runs) was written by the agent rather than
+    shipped by the repo. Such runs are recorded with origin "authored", and a number they produce
+    can only ever be a reimplementation check, never a reproduction. Inline code (``python -c``)
+    and scripts the repo's git history does not know about are detected and marked the same way.
+    """
     study.require_repo()
     if scope not in ("full", "shortened", "smoke", "setup"):
         raise StudyError("scope must be one of: full, shortened, smoke, setup")
+    origin, origin_reason = command_origin(study.repo, command, authored)
     if scope == "shortened" and not note:
         raise StudyError(
             "A shortened run needs --note saying what was shortened (epochs, data, steps)."
@@ -309,6 +351,8 @@ def run_command(
             "seed": seed,
             "scope": scope,
             "note": note,
+            "origin": origin,
+            "origin_reason": origin_reason,
             "started": started,
             "ended": ended,
             "wall_seconds": round(wall, 3),

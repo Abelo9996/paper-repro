@@ -76,6 +76,8 @@ def _compact_run(e: dict) -> dict:
             "wall_seconds",
             "peak_rss_mb",
             "scope",
+            "origin",
+            "origin_reason",
             "note",
             "limits",
             "stdout",
@@ -231,6 +233,7 @@ def run_command(
     env: dict[str, str] | None = None,
     cpu_seconds: int | None = None,
     memory_mb: int | None = None,
+    authored: bool = False,
     study: str | None = None,
 ) -> dict[str, Any]:
     """Run one shell command from the repo root inside the study env, and record stdout,
@@ -239,7 +242,10 @@ def run_command(
     what the run is: smoke (does it start at all, a few steps), setup (data download or
     preprocessing), full (exactly the configuration the claim refers to), or shortened (fewer
     epochs/steps/data than the claim; `note` must say what was cut, and it can never count as
-    a reproduction). Next: extract_metrics on a finished full run."""
+    a reproduction). Set authored=true when you wrote the command or a script it runs (the repo
+    ships no command that prints the number): its numbers are labeled REIMPLEMENTED, never
+    REPRODUCED. Inline `python -c` code and untracked scripts are detected and marked anyway.
+    Next: extract_metrics on a finished full run."""
     from . import guide
     from .runner import run_command as run
 
@@ -255,6 +261,7 @@ def run_command(
             env=env,
             cpu_seconds=cpu_seconds,
             memory_mb=memory_mb,
+            authored=authored,
         )
     except StudyError as exc:
         return _err(exc)
@@ -329,18 +336,23 @@ def compare_claim(
     why: str | None = None,
     could_not_run: bool = False,
     blocking: str | None = None,
+    reason: str | None = None,
     study: str | None = None,
 ) -> dict[str, Any]:
     """Put measured values next to a claim and get a verdict with reasons. `measured` is a list
     of selectors from extract_metrics, one per run or seed (or one '@each' selector). Verdicts:
     reproduced (within tolerance), close (within the close band), not_reproduced, inconclusive
-    (any value came from a smoke or shortened run), could_not_run (pass could_not_run=true when
-    the code would not run; the latest failure is cited). Default tolerance is 1% relative,
+    (any value came from a smoke or shortened run), reimplemented (a value came from a command
+    you wrote, see run_command authored; shown as REIMPLEMENTED, never REPRODUCED), could_not_run
+    (pass could_not_run=true when the code would not run; the latest failure is cited, and
+    `reason` is one of gpu_required, data_unavailable, broken_deps, no_command, timeout,
+    run_failed, other, read from the failure when omitted). Default tolerance is 1% relative,
     widened to the rounding of the stated value; close band is 3x. Give your own `tol` (absolute)
     or `rel_tol` when you can defend it, with the reason in `why`. Comparing the same claim again
     replaces the earlier verdict in the report, which still lists it as superseded."""
     from . import guide
     from .compare import compare_claim as run
+    from .compare import verdict_label
 
     try:
         s = resolve_study(study)
@@ -354,21 +366,27 @@ def compare_claim(
             why=why,
             could_not_run=could_not_run,
             blocking=blocking,
+            reason=reason,
         )
     except StudyError as exc:
         return _err(exc)
-    return {
-        k: e.get(k)
-        for k in (
-            "id",
-            "verdict",
-            "numbers_alone",
-            "scope",
-            "counts_as_reproduction",
-            "headline",
-            "reasoning",
-        )
-    } | {"next": guide.after_compare(e)}
+    return (
+        {"label": verdict_label(e)}
+        | {
+            k: e.get(k)
+            for k in (
+                "id",
+                "verdict",
+                "reason",
+                "numbers_alone",
+                "scope",
+                "counts_as_reproduction",
+                "headline",
+                "reasoning",
+            )
+        }
+        | {"next": guide.after_compare(e)}
+    )
 
 
 @mcp.tool()

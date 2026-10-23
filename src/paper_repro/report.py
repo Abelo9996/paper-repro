@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .compare import verdict_label
 from .study import Study, StudyError, locked
 from .util import host_info, normalize_metric, now_iso
 
@@ -221,6 +222,8 @@ def build_report(study: Study) -> dict:
                 "id": r["id"],
                 "command": r["command"],
                 "scope": r["scope"],
+                "origin": r.get("origin", "repo"),
+                "origin_reason": r.get("origin_reason"),
                 "seed": r.get("seed"),
                 "note": r.get("note"),
                 "exit_code": r["exit_code"],
@@ -239,6 +242,9 @@ def build_report(study: Study) -> dict:
             {
                 "id": k["id"],
                 "verdict": k["verdict"],
+                "label": verdict_label(k),
+                "reason": k.get("reason"),
+                "origin": k.get("origin"),
                 "numbers_alone": k.get("numbers_alone"),
                 "superseded_by": superseded.get(k["id"]),
                 "scope": k["scope"],
@@ -292,9 +298,10 @@ def build_report(study: Study) -> dict:
 
 VERDICT_WORDS = {
     "reproduced": "Reproduced",
-    "close": "Close",
+    "close": "Partial (close)",
     "not_reproduced": "Not reproduced",
     "inconclusive": "Inconclusive",
+    "reimplemented": "Reimplemented",
     "could_not_run": "Could not run",
 }
 
@@ -307,9 +314,7 @@ def _overall(rep: dict) -> str:
         return ks[0]["headline"]
     counts: dict[str, int] = {}
     for k in ks:
-        label = VERDICT_WORDS[k["verdict"]] + (
-            " (shortened run)" if k["verdict"] == "inconclusive" else ""
-        )
+        label = k.get("label") or verdict_label(k)
         counts[label] = counts.get(label, 0) + 1
     return (
         f"{len(ks)} claims compared: "
@@ -370,7 +375,7 @@ def render_markdown(rep: dict) -> str:
             )
             L.append("")
         else:
-            L.append(f"## {VERDICT_WORDS[k['verdict']]}: {c['raw_metric']} ({k['id']})")
+            L.append(f"## {k.get('label') or verdict_label(k)}: {c['raw_metric']} ({k['id']})")
             L.append("")
             if len(ordered) > 1:
                 L.append(f"**{k['headline']}**")
@@ -437,21 +442,27 @@ def render_markdown(rep: dict) -> str:
     L.append("## Commands")
     L.append("")
     if cmds:
-        L.append("| # | Command | Scope | Seed | Exit | Wall time | Peak memory |")
-        L.append("|---|---|---|---|---|---|---|")
+        L.append("| # | Command | Scope | Origin | Seed | Exit | Wall time | Peak memory |")
+        L.append("|---|---|---|---|---|---|---|---|")
         for c in cmds:
             exit_s = "timeout" if c["timed_out"] else str(c["exit_code"])
             mem = f"{c['peak_rss_mb']:.0f} MB" if c.get("peak_rss_mb") is not None else "n/a"
             seed = "" if c.get("seed") is None else str(c["seed"])
             L.append(
-                f"| {c['id']} | `{_md_escape(c['command'])}` | {c['scope']} | {seed} | {exit_s} | {_dur(c['wall_seconds'])} | {mem} |"
+                f"| {c['id']} | `{_md_escape(c['command'])}` | {c['scope']} | {c.get('origin') or 'repo'} | {seed} | {exit_s} | {_dur(c['wall_seconds'])} | {mem} |"
             )
         L.append("")
-        noted = [c for c in cmds if c.get("note") or c.get("overlapped_with")]
+        noted = [
+            c for c in cmds if c.get("note") or c.get("overlapped_with") or c.get("origin_reason")
+        ]
         if noted:
             for c in noted:
                 if c.get("note"):
                     L.append(f"- {c['id']}: {c['note']}")
+                if c.get("origin_reason"):
+                    L.append(
+                        f"- {c['id']}: written by the agent, not the repo: {c['origin_reason']}"
+                    )
                 if c.get("overlapped_with"):
                     L.append(
                         f"- {c['id']} ran at the same time as {', '.join(c['overlapped_with'])} "
