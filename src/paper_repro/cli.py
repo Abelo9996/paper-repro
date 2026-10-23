@@ -12,7 +12,11 @@ from .compare import REASONS
 from .study import StudyError, resolve_study
 
 EPILOG = """\
-typical flow (each step prints what to do next):
+one command (a gallery paper, an arXiv id, or a repo):
+  paper-repro gallery                                   papers with a pinned, vetted recipe
+  paper-repro repro nanogpt-shakespeare-char            verdict, report.md and a card
+
+step by step (each step prints what to do next):
   paper-repro inspect https://github.com/owner/repo     clone it, list the numbers it claims
   paper-repro paper                                     optional: numbers from the linked arXiv paper
   paper-repro env                                       build an isolated env from its dependencies
@@ -379,6 +383,78 @@ def cmd_verify(args) -> int:
     return 0 if v["ok"] else 1
 
 
+def cmd_repro(args) -> int:
+    from .repro import repro
+
+    def say(line: str) -> None:
+        if not args.json:
+            print(line, flush=True)
+
+    out = repro(
+        args.target,
+        workspace=args.workspace,
+        name=args.name,
+        seeds=args.seeds,
+        command=args.command,
+        metric=args.metric,
+        claim=args.claim,
+        authored=args.authored,
+        python=args.python,
+        timeout=args.timeout,
+        make_card=not args.no_card,
+        progress=say,
+    )
+
+    def human(o) -> str:
+        lines = ["", f"{o['label']}", o["headline"] or ""]
+        lines.append(
+            f"time: {o['run_wall_seconds']:.0f}s in runs, {o['wall_seconds']:.0f}s end to end"
+        )
+        lines.append(f"report: {o['report_md']}")
+        if o.get("card"):
+            lines.append(f"card: {o['card']['png']} and {o['card']['svg']}")
+            lines.append(f"badge for a README: {o['card']['badge']}")
+        return "\n".join(lines)
+
+    _p(args, out, human)
+    return 0 if out["verdict"] else 1
+
+
+def cmd_card(args) -> int:
+    from .card import write_card
+
+    study = resolve_study(args.study, args.workspace)
+    out = write_card(study, args.out)
+    _p(
+        args,
+        out,
+        lambda o: f"card: {o['png']}\ncard: {o['svg']}\nbadge for a README:\n{o['badge']}",
+    )
+    return 0
+
+
+def cmd_gallery(args) -> int:
+    from .gallery import load_gallery
+
+    entries = load_gallery()
+
+    def human(es) -> str:
+        lines = []
+        for e in es:
+            v = e.get("vetted") or {}
+            got = v.get("measured")
+            got = f"{got:g}" if isinstance(got, int | float) else "n/a"
+            claim = e["claim"].get("value", e["claim"].get("range"))
+            label = (v.get("label") or v.get("verdict") or "not vetted").upper()
+            lines.append(f"{e['slug']:<28} {label:<30} claim {claim} measured {got}  ({e['repo']})")
+        lines.append("")
+        lines.append("run one: paper-repro repro <slug>")
+        return "\n".join(lines)
+
+    _p(args, entries, human)
+    return 0
+
+
 def cmd_mcp(args) -> int:
     from .mcp_server import serve
 
@@ -617,6 +693,41 @@ def build_parser() -> argparse.ArgumentParser:
         "verify", parents=[common], help="check the evidence log's hash chain and output hashes"
     )
     s.set_defaults(func=cmd_verify)
+
+    s = sub.add_parser(
+        "repro",
+        parents=[common],
+        help="one command: from a gallery slug, arXiv id or repo to a verdict, report and card",
+        description="Run inspect, paper, env, run, metrics, compare, report and verify in one go "
+        "and end with a verdict, report.md and a shareable card. A gallery slug (see "
+        "`paper-repro gallery`) uses its pinned recipe and needs nothing else. An arXiv id is "
+        "resolved to the paper's official code first. A repo without a recipe stops with COULD "
+        "NOT RUN and the reason unless you pass --command and --claim.",
+    )
+    s.add_argument("target", help="gallery slug, arXiv id (1609.02907) or repo (owner/name or URL)")
+    s.add_argument("--name", help="study name (default: the slug; a new one each time)")
+    s.add_argument("--seeds", type=int, help="run only the first N of the recipe's seeds")
+    s.add_argument("--command", help="no recipe: the command that prints the number")
+    s.add_argument("--metric", help="no recipe: the metric name to read from the output")
+    s.add_argument("--claim", help="no recipe: the claim id to compare with (c3, p26)")
+    s.add_argument(
+        "--authored",
+        action="store_true",
+        help="no recipe: you wrote --command; the result is labeled REIMPLEMENTED",
+    )
+    s.add_argument("--python", help="override the Python version (recorded as a deviation)")
+    s.add_argument("--timeout", type=float, help="seconds per run (default: the recipe's, or 1800)")
+    s.add_argument("--no-card", action="store_true", help="do not render the card")
+    s.set_defaults(func=cmd_repro)
+
+    s = sub.add_parser(
+        "card", parents=[common], help="render the verdict card (PNG, SVG) and a README badge"
+    )
+    s.add_argument("--out", help="directory for card.png, card.svg, badge.md (default: the study)")
+    s.set_defaults(func=cmd_card)
+
+    s = sub.add_parser("gallery", parents=[common], help="list the vetted gallery papers")
+    s.set_defaults(func=cmd_gallery)
 
     s = sub.add_parser("mcp", help="run the MCP server over stdio")
     s.set_defaults(func=cmd_mcp, json=False)

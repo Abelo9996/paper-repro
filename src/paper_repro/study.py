@@ -163,6 +163,7 @@ class Study:
             "comparisons": [],
             "notes": [],
             "papers": [],
+            "repro": None,
         }
         for e in self.entries():
             k = e["kind"]
@@ -190,6 +191,10 @@ class Study:
                 st["comparisons"].append(e)
             elif k == "note":
                 st["notes"].append(e)
+            elif k == "repro":
+                st["repro"] = dict(e)
+            elif k == "repro_done" and st["repro"] is not None:
+                st["repro"]["done"] = e
         return st
 
     def require_repo(self) -> None:

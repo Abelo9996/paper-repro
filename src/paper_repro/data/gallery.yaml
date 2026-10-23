@@ -1,0 +1,29 @@
+# Papers whose official code was run end to end by `paper-repro repro <slug>` on a CPU laptop.
+# Every number under `vetted` comes from a recorded run (see docs/gallery.md for how to re-vet).
+# A recipe pins what `repro` needs: commit, Python, environment, setup, the exact command with
+# its seeds, the metric to read and the claim to compare with.
+papers:
+  - slug: nanogpt-shakespeare-char
+    title: "nanoGPT: character-level Shakespeare, the README's CPU configuration"
+    area: language modeling
+    repo: karpathy/nanoGPT
+    commit: 3adf61e154c3fe3fca428ad6bc3818b27a3b8291
+    python: "3.12"
+    device: cpu
+    env:
+      from_readme: true
+    setup:
+      - python data/shakespeare_char/prepare.py
+    command: >-
+      python train.py config/train_shakespeare_char.py --device=cpu --compile=False
+      --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4
+      --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0
+    timeout: 1200
+    metric:
+      name: val_loss
+    claim:
+      source: readme
+      value: 1.88
+      line: 88
+    not_checked:
+      - "train.py seeds torch with a fixed 1337, so repeated runs measure determinism, not seed variance; one run is made."

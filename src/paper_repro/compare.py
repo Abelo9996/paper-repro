@@ -40,6 +40,7 @@ REASONS = {
     "broken_deps": "dependencies do not install",
     "no_command": "no command that produces the number",
     "timeout": "time limit reached",
+    "no_metric": "the run printed no number to compare",
     "run_failed": "the run failed",
     "other": "see the blocking error",
 }

@@ -177,6 +177,7 @@ def build_report(study: Study) -> dict:
     }
     verify = study.verify()
     measured_ids = {v.get("id") for k in st["comparisons"] for v in k.get("measured", [])}
+    rp = st.get("repro") or {}
     return {
         "tool": {"name": "paper-repro", "version": __version__},
         "generated_at": now_iso(),
@@ -189,6 +190,21 @@ def build_report(study: Study) -> dict:
             "dirty": repo.get("dirty"),
         },
         "host": (env or {}).get("host") or host_info(),
+        "repro": None
+        if not rp
+        else {
+            "target": rp.get("target"),
+            "recipe": (rp.get("recipe") or {}).get("slug"),
+            "title": rp.get("title"),
+            "area": (rp.get("recipe") or {}).get("area"),
+            "arxiv": (rp.get("recipe") or {}).get("arxiv")
+            or (rp.get("resolution") or {}).get("arxiv"),
+            "device": (rp.get("recipe") or {}).get("device"),
+            "resolution": rp.get("resolution"),
+            "verify_with": rp.get("verify_with"),
+            "wall_seconds": (rp.get("done") or {}).get("wall_seconds"),
+            "run_wall_seconds": (rp.get("done") or {}).get("run_wall_seconds"),
+        },
         "environment": None
         if not env
         else {
@@ -355,8 +371,29 @@ def render_markdown(rep: dict) -> str:
         f"| Python | {env.get('python') or 'n/a'} |",
         f"| Commands | {len(cmds)} run, {ok} exited 0, {_dur(total)} total |",
         f"| Generated | {rep['generated_at'][:19].replace('T', ' ')} UTC by paper-repro {rep['tool']['version']} |",
-        "",
     ]
+    rp = rep.get("repro")
+    if rp:
+        if rp.get("title"):
+            paper = f" (arXiv:{rp['arxiv']})" if rp.get("arxiv") else ""
+            L.append(f"| Paper | {_md_escape(rp['title'])}{paper} |")
+        how = f"gallery recipe `{rp['recipe']}`" if rp.get("recipe") else "no gallery recipe"
+        took = f", {_dur(rp['wall_seconds'])} end to end" if rp.get("wall_seconds") else ""
+        L.append(f"| Run by | `paper-repro repro {_md_escape(rp['target'])}` ({how}{took}) |")
+        res = rp.get("resolution") or {}
+        if res.get("repo"):
+            who = (
+                "stated by the authors"
+                if res.get("stated_by_authors")
+                else "NOT stated by the authors"
+            )
+            L.append(
+                f"| Repo found | {res['repo']} via {res.get('method')} ({who}): "
+                f"{_md_escape((res.get('evidence') or '')[:200])} |"
+            )
+        if rp.get("verify_with"):
+            L.append(f"| Verify | `{rp['verify_with']}` |")
+    L.append("")
 
     ordered = [k for k in rep["comparisons"] if not k.get("superseded_by")] + [
         k for k in rep["comparisons"] if k.get("superseded_by")
