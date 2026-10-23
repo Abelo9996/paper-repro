@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.0 (2026-10-23)
 
 Point it at a paper, get a verdict you can post.
 
