@@ -73,3 +73,14 @@ def test_json_lines():
     losses = [v for v in vals if v["name"] == "loss"]
     assert [v["value"] for v in losses] == [2.0, 1.5]
     assert [v["line"] for v in losses] == [1, 2]
+
+
+def test_key_value_and_tab_separated_names_outside_the_vocabulary():
+    from paper_repro.metrics import extract_from_text
+
+    found = extract_from_text(
+        "global_step=4096, episodic_return=[500.]\nN\t70000\nP@1\t0.986\nacc=91.3%\n", "log"
+    )
+    got = {(v["name"], v["value"]) for v in found}
+    assert {("episodic_return", 500.0), ("p@1", 0.986), ("accuracy", 91.3)} <= got
+    assert len([v for v in found if v["line"] == 4]) == 1  # acc= is read once, not twice

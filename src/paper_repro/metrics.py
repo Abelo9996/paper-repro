@@ -21,6 +21,16 @@ SEP_RE = (
 VALUE_RE = r"(?P<value>" + NUM_RE + r")(?:[ \t]*/[ \t]*(?P<den>\d+))?[ \t]*(?P<pct>%)?"
 METRIC_VALUE_RE = re.compile(NAME_RE + SEP_RE + VALUE_RE, re.IGNORECASE)
 
+# Any `key=value` (`episodic_return=[500.]`, `global_step=4096`) or a `key<TAB>value` line
+# (fastText's `P@1	0.986`), for names outside the metric vocabulary. Read only where the
+# vocabulary pattern found nothing on the same span.
+KV_RE = re.compile(
+    r"(?<![\w.@])(?P<name>[A-Za-z][\w@]*(?:\.[A-Za-z][\w@]*)*)[ \t]*=[ \t]*\[?[ \t]*(?P<value>"
+    + NUM_RE
+    + r")\.?[ \t]*\]?(?![\w.])"
+)
+TAB_RE = re.compile(r"^[ \t]*(?P<name>[A-Za-z][\w@]*)\t+(?P<value>" + NUM_RE + r")[ \t]*$")
+
 EXCEPTION_LINE_RE = re.compile(
     r"^\s*(Traceback \(most recent call last\)|[\w.]*(Error|Exception|Warning)\b:)"
 )
@@ -49,6 +59,7 @@ def extract_from_text(text: str, source: str, start_line: int = 1) -> list[dict]
             line = line[:2000]
         if EXCEPTION_LINE_RE.match(line):
             continue  # "RuntimeError: CUDA error 2" is not a metric
+        spans: list[tuple[int, int]] = []
         for m in METRIC_VALUE_RE.finditer(line):
             if not _value_ok(m, line):
                 continue
@@ -72,6 +83,23 @@ def extract_from_text(text: str, source: str, start_line: int = 1) -> list[dict]
                 entry["fraction"] = f"{raw}/{den}"
                 entry["percent"] = False
             found.append(entry)
+            spans.append((m.start(), m.end()))
+        for m in [*KV_RE.finditer(line), *TAB_RE.finditer(line)]:
+            if any(a < m.end() and m.start() < b for a, b in spans):
+                continue
+            spans.append((m.start(), m.end()))
+            found.append(
+                {
+                    "name": normalize_metric(m.group("name")),
+                    "raw_name": m.group("name"),
+                    "value": float(m.group("value")),
+                    "raw": m.group(0).strip(),
+                    "percent": False,
+                    "source": source,
+                    "line": start_line + offset,
+                    "text": line.strip()[:300],
+                }
+            )
     return found
 
 
