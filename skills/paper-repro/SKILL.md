@@ -1,6 +1,6 @@
 ---
 name: paper-repro
-description: Check whether a paper's released code reproduces a number it claims. Use when asked to reproduce, verify, sanity-check or "get running" a paper's GitHub repo, or to find out whether a README's reported accuracy, loss, F1 or similar holds up. Also use when the user names a paper (arXiv id or PDF) and its code. Produces a verdict (reproduced, close, not reproduced, inconclusive, could not run) with an evidence bundle.
+description: Check whether a paper's released code reproduces a number it claims. Use when asked to reproduce, verify, sanity-check or "get running" a paper's GitHub repo, or to find out whether a README's reported accuracy, loss, F1 or similar holds up. Also use when the user names a paper (arXiv id or PDF) and its code. Produces a verdict (REPRODUCED, PARTIAL, NOT REPRODUCED, REIMPLEMENTED, INCONCLUSIVE, COULD NOT RUN with the reason) with an evidence bundle and a shareable card.
 ---
 
 # Reproducing a paper's number with paper-repro
@@ -8,6 +8,17 @@ description: Check whether a paper's released code reproduces a number it claims
 You drive; paper-repro records. It never decides what to run and never calls a model. Your job
 is to get the authors' code to produce the number they claim, under their configuration, and
 to report what happened, including when it did not work.
+
+## Try one command first
+
+If the user names a paper that is in the gallery (`list_gallery`, or `paper-repro gallery`), or
+gives an arXiv id, call `repro(target)` (CLI: `paper-repro repro <slug or arXiv id>`). A gallery
+recipe pins the commit, Python, environment, command, seeds, metric and claim, so you author
+nothing; the result has the verdict `label`, the headline, `report.md` and a card
+(`card.png`, `card.svg`, a README badge). For an arXiv id it finds the official repo from the
+arXiv page or the PDF and says how; a repo found only by GitHub search is labeled as not stated
+by the authors, so tell the user. If `repro` ends in COULD NOT RUN because there is no recipe
+or no command, continue with the workflow below.
 
 Use the MCP tools (`inspect_repo`, `scan_paper`, `create_env`, `run_command`,
 `extract_metrics`, `compare_claim`, `add_claim`, `add_note`, `write_report`) or the CLI
@@ -50,6 +61,13 @@ about the claim and the method comes first.
    `scope="shortened"` and say in `note` exactly what was cut. Data downloads and
    preprocessing go in `scope="setup"` runs so they are on the record too.
 
+   If the repo ships no command that prints the number (notebooks only, a library without a
+   script), you may write one, but pass `authored=true` to `run_command` (CLI: `--authored`).
+   Inline `python -c` code and scripts the repo does not track are detected and marked anyway.
+   Any number from such a run is labeled **REIMPLEMENTED**: say "reimplemented", never
+   "reproduced", to the user. Prefer running the repo's own notebook (`ipython nb.ipynb` with
+   `MPLBACKEND=Agg`) over rewriting it.
+
 6. **Extract.** `extract_metrics(run_ids=[...])`, then pick the value that corresponds to the
    claim (usually the final evaluation, not a training-step log line). Use selectors like
    `m2:val_loss:last` or an exact id like `m2.341`. If the run writes a results file, pass it
@@ -60,12 +78,15 @@ about the claim and the method comes first.
 
 8. **Compare.** `compare_claim(claim_id, measured=[...], tol=..., why=...)`. Choose a tolerance
    you can defend (the authors' reported std, the eval noise, the rounding of the stated
-   value) and give the reason in `why`. Defaults: 1% relative, close band 3x that. Any value
-   from a smoke or shortened run gives **inconclusive**: that is the honest verdict, not a
-   failure to fix by relabeling the run.
+   value) and give the reason in `why`. Defaults: 1% relative, close band 3x that (shown as
+   PARTIAL). Any value from a smoke or shortened run gives **inconclusive**: that is the honest
+   verdict, not a failure to fix by relabeling the run. A value from an authored command gives
+   **reimplemented**. For could_not_run, the `reason` (gpu_required, data_unavailable,
+   broken_deps, ...) is read from the failing step; pass it yourself when you know better.
 
-9. **Report.** `write_report()`. Give the user the verdict line, the numbers, the path to
-   `report.md`, and the main caveats from "What was not checked".
+9. **Report.** `write_report()`, then `render_card()` for a shareable card and badge. Give the
+   user the verdict label, the numbers, the paths to `report.md` and `card.png`, and the main
+   caveats from "What was not checked".
 
 ## Rules
 

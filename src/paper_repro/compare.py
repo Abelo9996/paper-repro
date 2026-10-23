@@ -54,8 +54,10 @@ DATA_ERROR_RE = re.compile(
     r"HTTP Error 4\d\d|404 Not Found|403 Forbidden|urlopen error|Name or service not known|"
     r"nodename nor servname|ConnectionError|Max retries exceeded|Dataset not found|"
     r"requires you to accept|gated repo|"
+    r"Unrecognized archive format|not in gzip format|"
     r"(?:FileNotFoundError|No such file or directory)[^\n]*"
-    r"(?:data|\.csv|\.np[yz]|\.pkl|\.pt|\.h5|\.json|\.txt|\.bin|\.zip|\.tar)",
+    r"(?:data|\.csv|\.np[yz]|\.pkl|\.pt|\.h5|\.json|\.txt|\.bin|\.zip|\.tar)|"
+    r"(?:data|\.csv|\.np[yz]|\.pkl|\.h5|\.zip|\.tar)[^\s:]*: No such file or directory",
     re.IGNORECASE,
 )
 
@@ -74,13 +76,14 @@ def verdict_label(k: dict) -> str:
     return label
 
 
-def classify_blocking(block: dict | None) -> str:
-    """Why nothing was measured, from the step that failed."""
+def classify_blocking(block: dict | None, full_error: str | None = None) -> str:
+    """Why nothing was measured, from the step that failed. `full_error` is the whole stderr when
+    it is available: the cause (a failed download) often scrolls out of the tail."""
     if not block:
         return "other"
     if block.get("kind") == "env":
         return "broken_deps"
-    error = block.get("error") or ""
+    error = (full_error or "") + "\n" + (block.get("error") or "")
     if GPU_ERROR_RE.search(error):
         return "gpu_required"
     if block.get("timed_out"):
@@ -307,7 +310,12 @@ def compare_claim(
             reasoning.append(f"{what} {block['id']} {how}: `{block.get('command')}`.")
         else:
             reasoning.append("Marked as could not run by the agent; no failing step was recorded.")
-        why_not = reason or classify_blocking(block)
+        full = None
+        if block and block["kind"] == "run" and block["id"] in st["runs"]:
+            path = study.root / st["runs"][block["id"]]["stderr"]["path"]
+            if path.exists():
+                full = path.read_text(encoding="utf-8", errors="replace")[-200_000:]
+        why_not = reason or classify_blocking(block, full)
         reasoning.append(f"Reason: {REASONS[why_not]}.")
         reasoning.append("No number was measured, so the claim was neither confirmed nor refuted.")
         return study.append(

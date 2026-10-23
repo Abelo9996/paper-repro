@@ -97,6 +97,12 @@ def validate_recipe(r: dict[str, Any]) -> list[str]:
             out.append("several seeds need {seed} in the command")
     elif isinstance(cmd, str) and "{seed}" in cmd:
         out.append("the command uses {seed} but no seeds are listed")
+    ev = r.get("env_vars")
+    if ev is not None and not (
+        isinstance(ev, dict)
+        and all(isinstance(k, str) and isinstance(v, str) for k, v in ev.items())
+    ):
+        out.append("env_vars must map names to string values")
     if "timeout" in r and not isinstance(r["timeout"], int | float):
         out.append("timeout must be a number of seconds")
     if "authored" in r and not isinstance(r["authored"], bool):

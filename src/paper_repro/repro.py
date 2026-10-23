@@ -387,8 +387,9 @@ def repro(
 
     # 5. Setup and runs.
     run_timeout = timeout or (recipe or {}).get("timeout") or DEFAULT_TIMEOUT
+    run_env = {k: str(v) for k, v in ((recipe or {}).get("env_vars") or {}).items()}
     for cmd in (recipe or {}).get("setup") or []:
-        r = run_command(study, cmd, scope="setup", timeout=run_timeout)
+        r = run_command(study, cmd, scope="setup", timeout=run_timeout, env=run_env)
         say(f"setup    {r['id']}: {cmd} -> exit {r['exit_code']} in {_dur(r['wall_seconds'])}")
         if r["exit_code"] != 0 or r["timed_out"]:
             return could_not_run(None, r["id"], f"Setup step {r['id']} failed: `{cmd}`.")
@@ -402,6 +403,7 @@ def repro(
         r = run_command(
             study,
             cmd,
+            env=run_env,
             seed=seed,
             scope="full",
             timeout=run_timeout,

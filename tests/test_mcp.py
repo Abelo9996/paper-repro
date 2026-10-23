@@ -60,6 +60,9 @@ def test_mcp_stdio_roundtrip(good_repo, tmp_path):
             "study_status",
             "verify_evidence",
             "scan_paper",
+            "repro",
+            "list_gallery",
+            "render_card",
         }
         res = rpc(
             proc,

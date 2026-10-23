@@ -16,8 +16,10 @@ from .study import StudyError, resolve_study
 INSTRUCTIONS = """\
 paper-repro checks whether a paper's released code reproduces a number it claims, and records
 every step as evidence. You decide what to run; the tools run it and keep the receipts.
-Workflow: inspect_repo -> pick a claim id (scan_paper if the number is only in the paper) ->
-create_env -> run_command (smoke first, then the claim's configuration with scope full) ->
+Fastest path: repro(target) with a gallery slug (list_gallery) or an arXiv id gives a verdict,
+report and card in one call. Otherwise, step by step:
+inspect_repo -> pick a claim id (scan_paper if the number is only in the paper) ->
+create_env -> run_command (smoke first; authored=true for a command you wrote, then the claim's configuration with scope full) ->
 extract_metrics -> compare_claim -> write_report. Every result has a `next` field saying what
 usually comes next. Never type in a number you did not get from extract_metrics; never change
 the paper's method to make a run succeed. If the code cannot run, call compare_claim with
@@ -437,6 +439,97 @@ def verify_evidence(study: str | None = None) -> dict[str, Any]:
     """Recheck the evidence log's hash chain and the hashes of captured output files."""
     try:
         return resolve_study(study).verify()
+    except StudyError as exc:
+        return _err(exc)
+
+
+@mcp.tool()
+def repro(
+    target: str,
+    seeds: int | None = None,
+    command: str | None = None,
+    metric: str | None = None,
+    claim: str | None = None,
+    authored: bool = False,
+    timeout_seconds: float | None = None,
+) -> dict[str, Any]:
+    """One call from a paper to a verdict, report and card. `target` is a gallery slug (see
+    list_gallery), an arXiv id (resolved to the official repo via the arXiv page or the PDF;
+    GitHub search only as a labeled fallback) or a repo. A gallery recipe pins everything, so
+    nothing is authored. Without one it stops with COULD NOT RUN and the reason (GPU-only code,
+    no command) unless you pass `command` and `claim` (and `metric`); set `authored=true` if you
+    wrote the command, and the verdict is REIMPLEMENTED. Blocks until all runs finish, which can
+    take minutes; for long runs use the CLI `paper-repro repro` from a shell. Tell the user the
+    `label` in those words, the headline, and the card and report paths."""
+    from .repro import repro as run
+
+    try:
+        out = run(
+            target,
+            seeds=seeds,
+            command=command,
+            metric=metric,
+            claim=claim,
+            authored=authored,
+            timeout=timeout_seconds,
+        )
+    except StudyError as exc:
+        return _err(exc)
+    return {
+        k: out.get(k)
+        for k in (
+            "label",
+            "verdict",
+            "headline",
+            "study",
+            "recipe",
+            "repo",
+            "commit",
+            "resolution",
+            "wall_seconds",
+            "report_md",
+            "card",
+        )
+    }
+
+
+@mcp.tool()
+def list_gallery() -> dict[str, Any]:
+    """Papers with a pinned, vetted recipe for repro: slug, title, repo, the claim, and what
+    was measured when it was vetted (verdict, value, machine, wall time)."""
+    from .gallery import load_gallery
+
+    try:
+        entries = load_gallery()
+    except StudyError as exc:
+        return _err(exc)
+    return {
+        "papers": [
+            {
+                "slug": e["slug"],
+                "title": e["title"],
+                "area": e["area"],
+                "repo": e["repo"],
+                "arxiv": e.get("arxiv"),
+                "claim": e["claim"].get("value", e["claim"].get("range")),
+                "vetted": {
+                    k: (e.get("vetted") or {}).get(k)
+                    for k in ("label", "measured", "std", "host", "wall_seconds", "date")
+                },
+            }
+            for e in entries
+        ]
+    }
+
+
+@mcp.tool()
+def render_card(out_dir: str | None = None, study: str | None = None) -> dict[str, Any]:
+    """Render the verdict card (1200x630 PNG and SVG) and a README badge from the study's
+    report. Call write_report first."""
+    from .card import write_card
+
+    try:
+        return write_card(resolve_study(study), out_dir)
     except StudyError as exc:
         return _err(exc)
 

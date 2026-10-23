@@ -108,3 +108,13 @@ def test_smoke_run_is_labeled_reduced_scale(study):
     m = extract_metrics(study)["id"]
     k = compare_claim(study, claim_id="u1", measured=[f"{m}:test_accuracy:last"])
     assert verdict_label(k) == "INCONCLUSIVE (reduced-scale smoke check)"
+
+
+def test_failed_download_early_in_stderr_is_data_unavailable():
+    full = (
+        "tar: Error opening archive: Unrecognized archive format\n"
+        "cat: data/dbpedia_csv/train.csv: No such file or directory\n" + "warning: x\n" * 40
+    )
+    block = {"kind": "run", "error": "Abort trap: 6 ./fasttext test", "timed_out": False}
+    assert classify_blocking(block) == "run_failed"
+    assert classify_blocking(block, full) == "data_unavailable"

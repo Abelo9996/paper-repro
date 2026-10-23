@@ -1,29 +1,688 @@
 # Papers whose official code was run end to end by `paper-repro repro <slug>` on a CPU laptop.
-# Every number under `vetted` comes from a recorded run (see docs/gallery.md for how to re-vet).
-# A recipe pins what `repro` needs: commit, Python, environment, setup, the exact command with
-# its seeds, the metric to read and the claim to compare with.
+# Every number under `vetted` was written by scripts/vet_gallery.py from a recorded run's
+# report.json; none is typed in. A recipe pins what `repro` needs: commit, Python, environment,
+# setup, the exact command with its seeds, the metric to read and the claim to compare with.
 papers:
-  - slug: nanogpt-shakespeare-char
-    title: "nanoGPT: character-level Shakespeare, the README's CPU configuration"
-    area: language modeling
-    repo: karpathy/nanoGPT
-    commit: 3adf61e154c3fe3fca428ad6bc3818b27a3b8291
-    python: "3.12"
-    device: cpu
-    env:
-      from_readme: true
-    setup:
-      - python data/shakespeare_char/prepare.py
-    command: >-
-      python train.py config/train_shakespeare_char.py --device=cpu --compile=False
-      --eval_iters=20 --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4
-      --n_embd=128 --max_iters=2000 --lr_decay_iters=2000 --dropout=0.0
-    timeout: 1200
-    metric:
-      name: val_loss
-    claim:
-      source: readme
-      value: 1.88
-      line: 88
-    not_checked:
-      - "train.py seeds torch with a fixed 1337, so repeated runs measure determinism, not seed variance; one run is made."
+- slug: nanogpt-shakespeare-char
+  title: 'nanoGPT: character-level Shakespeare, the README''s CPU configuration'
+  area: language modeling
+  repo: karpathy/nanoGPT
+  commit: 3adf61e154c3fe3fca428ad6bc3818b27a3b8291
+  python: '3.12'
+  device: cpu
+  env:
+    from_readme: true
+  setup:
+  - python data/shakespeare_char/prepare.py
+  command: python train.py config/train_shakespeare_char.py --device=cpu --compile=False --eval_iters=20
+    --log_interval=1 --block_size=64 --batch_size=12 --n_layer=4 --n_head=4 --n_embd=128 --max_iters=2000
+    --lr_decay_iters=2000 --dropout=0.0
+  timeout: 1200
+  metric:
+    name: val_loss
+  claim:
+    source: readme
+    value: 1.88
+    line: 88
+  not_checked:
+  - train.py seeds torch with a fixed 1337, so repeated runs measure determinism, not seed variance; one
+    run is made.
+  vetted:
+    verdict: reproduced
+    label: REPRODUCED
+    headline: 'Reproduced: loss claimed 1.88, measured 1.8857, 0.0057 away, within the tolerance of ±0.0188.'
+    date: '2026-10-23'
+    paper_repro: 0.2.0
+    host: Apple M4, macOS 26.2
+    python: 3.12.13
+    key_packages:
+      torch: 2.14.1
+      numpy: 2.5.4
+      networkx: '3.7'
+    seeds:
+    - null
+    run_wall_seconds: 34.5
+    wall_seconds: 36.8
+    measured: 1.8857
+    values:
+    - 1.8857
+    study: nanogpt-shakespeare-char
+- slug: pygcn-cora
+  title: Semi-Supervised Classification with Graph Convolutional Networks (PyTorch code)
+  area: graph nets
+  arxiv: '1609.02907'
+  repo: tkipf/pygcn
+  commit: 1600b5b748b3976413d1e307540ccc62605b4d6d
+  python: '3.12'
+  device: cpu
+  command: cd pygcn && python train.py --no-cuda --seed {seed}
+  seeds:
+  - 0
+  - 1
+  - 2
+  timeout: 600
+  metric:
+    name: accuracy
+  claim:
+    source: paper
+    table: Table 2
+    row: GCN (this paper)
+    column: Cora
+    value: 81.5
+    percent: true
+  tolerance:
+    abs: 1.0
+    why: Cora's test set has 1000 nodes, so accuracy moves in steps of 0.1 points and seed noise is several
+      of them.
+  not_checked:
+  - 'The pygcn README says it is not intended to reproduce the paper''s results: it trains on the first
+    140 nodes in file order, not the paper''s split of 20 labels per class. The paper''s own code is tkipf/gcn
+    (TensorFlow 1).'
+  vetted:
+    verdict: close
+    label: PARTIAL
+    headline: 'Partial (close): accuracy claimed 81.5%, measured 82.7% (mean of 3 runs), 1.2 away: outside
+      the tolerance of ±1 but inside the close band of ±3.'
+    date: '2026-10-23'
+    paper_repro: 0.2.0
+    host: Apple M4, macOS 26.2
+    python: 3.12.13
+    key_packages:
+      torch: 2.14.1
+      numpy: 2.5.4
+      scipy: 1.18.1
+      networkx: '3.7'
+    seeds:
+    - 0
+    - 1
+    - 2
+    run_wall_seconds: 11.0
+    wall_seconds: 13.1
+    measured: 82.7
+    values:
+    - 82.1
+    - 82.9
+    - 83.1
+    std: 0.52915
+    study: pygcn-cora
+- slug: gcn-tf-cora
+  title: Semi-Supervised Classification with Graph Convolutional Networks (official TensorFlow code)
+  area: graph nets
+  arxiv: '1609.02907'
+  repo: tkipf/gcn
+  commit: 39a4089fe72ad9f055ed6fdb9746abdcfebc4d81
+  python: '3.8'
+  device: cpu
+  env:
+    requirements:
+    - requirements.txt
+  command: cd gcn && python train.py --seed {seed}
+  seeds:
+  - 0
+  timeout: 600
+  metric:
+    name: test_accuracy
+  claim:
+    source: paper
+    table: Table 2
+    row: GCN (this paper)
+    column: Cora
+    value: 81.5
+    percent: true
+  vetted:
+    verdict: could_not_run
+    label: COULD NOT RUN (dependencies do not install)
+    headline: 'Could not run (dependencies do not install): accuracy 81.5% was not measured.'
+    date: '2026-10-23'
+    paper_repro: 0.2.0
+    host: Apple M4, macOS 26.2
+    python: 3.8.20
+    key_packages: {}
+    seeds: []
+    run_wall_seconds: 0
+    wall_seconds: 2.5
+    reason: broken_deps
+    blocked_at: 'env e1: uv pip install --python <study>/env/bin/python -r <repo>/requirements.txt'
+    error: "Using Python 3.8.20 environment at: /Users/abelyagubyan/paper-repro-vet/gcn-tf-cora/env\n\
+      \  × No solution found when resolving dependencies:\n  ╰─▶ Because tensorflow==1.15.4 has no wheels\
+      \ with a matching Python ABI tag\n      (e.g., `cp38`) and you require tensorflow==1.15.4, we can\
+      \ conclude that\n      your requirements are unsatisfiable.\n\nhint: You require CPython 3.8 (`cp38`),\
+      \ but we only found wheels for `tensorflow` (v1.15.4) with the following Python ABI tags: `cp35m`,\
+      \ `cp36m`, `cp37m`"
+    study: gcn-tf-cora
+- slug: sgc-cora
+  title: Simplifying Graph Convolutional Networks
+  area: graph nets
+  arxiv: '1902.07153'
+  repo: Tiiiger/SGC
+  commit: 2c7a2727e82e462d8ef9d6e57f0b08888e16488f
+  python: '3.8'
+  device: cpu
+  env:
+    requirements:
+    - requirements.txt
+    extra:
+    - torch
+  command: python citation.py --dataset cora --tuned --no-cuda --seed {seed}
+  seeds:
+  - 42
+  - 1
+  - 2
+  timeout: 600
+  metric:
+    name: test_accuracy
+  claim:
+    source: readme
+    value: 81.0
+    line: 31
+    metric: accuracy
+    percent: true
+    where: README.md:31
+    text: 'Cora    | Acc: 81.0 %     | 0.13s'
+  tolerance:
+    abs: 1.0
+    why: Cora's test set has 1000 nodes, so accuracy moves in steps of 0.1 points; the README states one
+      decimal.
+  deviations:
+  - requirements.txt does not list PyTorch (the README says PyTorch>=1.0.0), so the latest torch for Python
+    3.8 was added.
+  vetted:
+    verdict: reproduced
+    label: REPRODUCED
+    headline: 'Reproduced: accuracy claimed 81.0%, measured 81.0333% (mean of 3 runs), 0.0333333 away,
+      within the tolerance of ±1.'
+    date: '2026-10-23'
+    paper_repro: 0.2.0
+    host: Apple M4, macOS 26.2
+    python: 3.8.20
+    key_packages:
+      torch: 2.4.1
+      numpy: 1.24.4
+      scipy: 1.10.1
+      networkx: '1.11'
+      scikit-learn: 1.3.2
+    seeds:
+    - 42
+    - 1
+    - 2
+    run_wall_seconds: 19.8
+    wall_seconds: 22.9
+    measured: 81.033333
+    values:
+    - 81.0
+    - 81.1
+    - 81.0
+    std: 0.057735
+    study: sgc-cora-2
+- slug: dgi-cora
+  title: Deep Graph Infomax
+  area: graph nets
+  arxiv: '1809.10341'
+  repo: PetarV-/DGI
+  commit: 61baf67d7052905c77bdeb28c22926f04e182362
+  python: '3.10'
+  device: cpu
+  env:
+    extra:
+    - torch
+    - numpy<1.23
+    - scipy<1.8
+    - networkx<2.7
+  command: python execute.py
+  timeout: 900
+  metric:
+    name: accuracy
+  claim:
+    source: manual
+    metric: accuracy
+    value: 82.3
+    percent: true
+    where: 'arXiv:1809.10341, Table 2 (transductive), row DGI (ours), column Cora: 82.3 ± 0.6'
+    text: DGI (ours) 82.3 ± 0.6% on Cora
+    pm: 0.6
+  deviations:
+  - 'The repo has no dependency file. It imports scipy.sparse.linalg.eigen.arpack, which newer SciPy removed,
+    so packages from before that change were chosen: Python 3.10, numpy<1.23, scipy<1.8, networkx<2.7
+    and the latest torch.'
+  vetted:
+    verdict: could_not_run
+    label: COULD NOT RUN (GPU required)
+    headline: 'Could not run (GPU required): accuracy 82.3% was not measured.'
+    date: '2026-10-23'
+    paper_repro: 0.2.0
+    host: Apple M4, macOS 26.2
+    python: 3.10.21
+    key_packages:
+      torch: 2.14.1
+      numpy: 1.22.4
+      scipy: 1.7.3
+      networkx: 2.6.3
+    seeds:
+    - null
+    run_wall_seconds: 41.7
+    wall_seconds: 42.8
+    reason: gpu_required
+    blocked_at: 'run r1: python execute.py'
+    error: 'AssertionError: Torch not compiled with CUDA enabled'
+    study: dgi-cora
+  not_checked:
+  - execute.py checks torch.cuda.is_available() for pretraining, which finished on the CPU, but then calls
+    .cuda() unconditionally for the logistic-regression evaluation (execute.py:115), so no accuracy was
+    printed.
+- slug: gcnii-cora
+  title: Simple and Deep Graph Convolutional Networks (GCNII)
+  area: graph nets
+  arxiv: '2007.02133'
+  repo: chennnM/GCNII
+  commit: ca91f5686c4cd09cc1c6f98431a5d5b7e36acc92
+  python: '3.12'
+  device: cpu
+  env:
+    extra:
+    - torch
+    - numpy
+    - scipy
+    - networkx
+    - scikit-learn
+  command: python -u train.py --data cora --layer 64 --test --seed {seed}
+  seeds:
+  - 42
+  timeout: 900
+  metric:
+    name: test_accuracy
+  claim:
+    source: readme
+    value: 85.5
+    line: 24
+    metric: accuracy
+    percent: true
+    where: README.md:24
+    text: '| Cora       | 64 | 85.5  | Cham | 8  | 62.48 |'
+  deviations:
+  - The README asks for CUDA 10.1, Python 3.6.9 and PyTorch 1.3.1 and ships no dependency file; current
+    versions of the packages it imports were installed.
+  vetted:
+    verdict: could_not_run
+    label: COULD NOT RUN (GPU required)
+    headline: 'Could not run (GPU required): Metric 85.5 was not measured.'
+    date: '2026-10-23'
+    paper_repro: 0.2.0
+    host: Apple M4, macOS 26.2
+    python: 3.12.13
+    key_packages:
+      torch: 2.14.1
+      numpy: 2.5.4
+      scipy: 1.18.1
+      networkx: '3.7'
+      scikit-learn: 1.9.1
+    seeds:
+    - 42
+    run_wall_seconds: 2.5
+    wall_seconds: 4.2
+    reason: gpu_required
+    blocked_at: 'run r1: python -u train.py --data cora --layer 64 --test --seed 42'
+    error: 'AssertionError: Torch not compiled with CUDA enabled'
+    study: gcnii-cora
+- slug: hnn-mass-spring
+  title: 'Hamiltonian Neural Networks: ideal mass-spring task'
+  area: physics-informed learning
+  arxiv: '1906.01563'
+  repo: greydanus/hamiltonian-nn
+  commit: bcc362235dc623ffe48f22ccc22417e02e9803b4
+  python: '3.12'
+  device: cpu
+  env:
+    extra:
+    - torch
+    - numpy
+    - scipy
+    - autograd
+    - imageio
+  command: python experiment-spring/train.py --verbose --seed {seed}
+  seeds:
+  - 0
+  - 1
+  - 2
+  timeout: 600
+  metric:
+    name: final_test_loss
+  claim:
+    source: manual
+    metric: test loss
+    value: 0.036
+    range:
+    - 0.034
+    - 0.038
+    where: 'arXiv:1906.01563, page 7, Table 1, row 1: Ideal mass-spring, column Test loss HNN (values
+      multiplied by 10^3)'
+    text: '1: Ideal mass-spring ... Test loss HNN 36 ± 2 (x 10^-3)'
+    pm: 0.002
+  deviations:
+  - The repo has no dependency file; the packages it imports (torch, numpy, scipy, autograd, imageio)
+    were installed at their latest versions.
+  not_checked:
+  - The paper's energy metric (HNN .38 ± .1 x 10^-3) is computed in analyze-spring.ipynb and was not run.
+  vetted:
+    verdict: reproduced
+    label: REPRODUCED
+    headline: 'Reproduced: test loss claimed the range 0.034 to 0.038, measured 0.037961 (mean of 3 runs),
+      inside the claimed range, within the tolerance of ±0.0005.'
+    date: '2026-10-23'
+    paper_repro: 0.2.0
+    host: Apple M4, macOS 26.2
+    python: 3.12.13
+    key_packages:
+      torch: 2.14.1
+      numpy: 2.5.4
+      scipy: 1.18.1
+      networkx: '3.7'
+    seeds:
+    - 0
+    - 1
+    - 2
+    run_wall_seconds: 55.1
+    wall_seconds: 62.2
+    measured: 0.037961
+    values:
+    - 0.035915
+    - 0.03762
+    - 0.040348
+    std: 0.002236
+    study: hnn-mass-spring
+- slug: hnn-pendulum
+  title: 'Hamiltonian Neural Networks: ideal pendulum task'
+  area: physics-informed learning
+  arxiv: '1906.01563'
+  repo: greydanus/hamiltonian-nn
+  commit: bcc362235dc623ffe48f22ccc22417e02e9803b4
+  python: '3.12'
+  device: cpu
+  env:
+    extra:
+    - torch
+    - numpy
+    - scipy
+    - autograd
+    - imageio
+  command: python experiment-pend/train.py --verbose --seed {seed}
+  seeds:
+  - 0
+  - 1
+  - 2
+  timeout: 600
+  metric:
+    name: final_test_loss
+  claim:
+    source: manual
+    metric: test loss
+    value: 0.036
+    range:
+    - 0.034
+    - 0.038
+    where: 'arXiv:1906.01563, page 7, Table 1, row 2: Ideal pendulum, column Test loss HNN (values multiplied
+      by 10^3)'
+    text: '2: Ideal pendulum ... Test loss HNN 36 ± 2 (x 10^-3)'
+    pm: 0.002
+  deviations:
+  - The repo has no dependency file; the packages it imports (torch, numpy, scipy, autograd, imageio)
+    were installed at their latest versions.
+  not_checked:
+  - The paper's energy metric (HNN 25 ± 5 x 10^-3) is computed in analyze-pend.ipynb and was not run.
+  vetted:
+    verdict: reproduced
+    label: REPRODUCED
+    headline: 'Reproduced: test loss claimed the range 0.034 to 0.038, measured 0.0364887 (mean of 3 runs),
+      inside the claimed range, within the tolerance of ±0.0005.'
+    date: '2026-10-23'
+    paper_repro: 0.2.0
+    host: Apple M4, macOS 26.2
+    python: 3.12.13
+    key_packages:
+      torch: 2.14.1
+      numpy: 2.5.4
+      scipy: 1.18.1
+      networkx: '3.7'
+    seeds:
+    - 0
+    - 1
+    - 2
+    run_wall_seconds: 26.2
+    wall_seconds: 31.9
+    measured: 0.036489
+    values:
+    - 0.035587
+    - 0.037232
+    - 0.036647
+    std: 0.000834
+    study: hnn-pendulum
+- slug: mnist1d-logistic
+  title: 'Scaling Down Deep Learning with MNIST-1D: Table 1, the paper''s notebook'
+  area: classic vision
+  arxiv: '2011.14439'
+  repo: greydanus/mnist1d
+  commit: e2f536fa86442c13473b433d579e9852ec4d1c1d
+  python: '3.12'
+  device: cpu
+  env:
+    install_project: true
+    extra:
+    - torch
+    - ipython
+    - nbformat
+  setup:
+  - mkdir -p ../nbrun/figures && ln -sfn ../repo ../nbrun/mnist1d
+  command: cd ../nbrun && ipython mnist1d/notebooks/mnist1d-classification.ipynb
+  timeout: 900
+  metric:
+    name: test_accuracy
+  claim:
+    source: paper
+    table: Table 1
+    row: MNIST-1D (shuffled)
+    column: Logistic regression
+    value: 32
+    percent: true
+    pm: 1
+  tolerance:
+    abs: 1.0
+    why: The paper states 32 ± 1 (standard deviation over three runs).
+  deviations:
+  - The notebook adds ./mnist1d/notebooks to sys.path and saves figures/benchmark.png, as if run from
+    a directory holding a checkout named mnist1d and a figures folder; it is run from such a directory
+    beside the checkout (a symlink mnist1d -> the checkout, and an empty figures/). ipython, nbformat
+    and torch (from the repo's [all] extra) were installed to run it.
+  - MPLBACKEND=Agg is set so the plotting cells draw off screen instead of waiting on a window (without
+    it the run hung in the first plotting cell after all 8 models had trained).
+  not_checked:
+  - The notebook trains 8 models; the last value it prints is the logistic regression on shuffled MNIST-1D,
+    the row compared here. The other cells of Table 1 are in the run's stdout but were not compared.
+  env_vars:
+    MPLBACKEND: Agg
+  vetted:
+    verdict: reproduced
+    label: REPRODUCED
+    headline: 'Reproduced: accuracy claimed 32% ± 1 (treated as 31 to 33), measured 31.6%, inside the
+      claimed range, within the tolerance of ±1.'
+    date: '2026-10-23'
+    paper_repro: 0.2.0
+    host: Apple M4, macOS 26.2
+    python: 3.12.13
+    key_packages:
+      torch: 2.14.1
+      numpy: 2.5.4
+      scipy: 1.18.1
+      networkx: '3.7'
+    seeds:
+    - null
+    run_wall_seconds: 165.6
+    wall_seconds: 170.3
+    measured: 31.6
+    values:
+    - 31.6
+    study: mnist1d-logistic
+- slug: fasttext-dbpedia
+  title: 'Bag of Tricks for Efficient Text Classification (fastText): DBpedia'
+  area: NLP text classification
+  arxiv: '1607.01759'
+  repo: facebookresearch/fastText
+  commit: 1142dc4c4ecbc19cc16eee5cdd28472e689267e6
+  python: '3.12'
+  device: cpu
+  env:
+    no_deps_file: true
+  command: bash classification-example.sh
+  timeout: 1200
+  metric:
+    name: p@1
+  claim:
+    source: manual
+    metric: accuracy
+    value: 98.6
+    percent: true
+    where: arXiv:1607.01759, page 3, Table 1, row fastText, h = 10, bigram, column DBP
+    text: fastText, h = 10, bigram ... DBP 98.6
+  vetted:
+    verdict: could_not_run
+    label: COULD NOT RUN (data unavailable)
+    headline: 'Could not run (data unavailable): accuracy 98.6% was not measured.'
+    date: '2026-10-23'
+    paper_repro: 0.2.0
+    host: Apple M4, macOS 26.2
+    python: 3.12.13
+    key_packages: {}
+    seeds:
+    - null
+    run_wall_seconds: 5.9
+    wall_seconds: 7.0
+    reason: data_unavailable
+    blocked_at: 'run r1: bash classification-example.sh'
+    error: 'classification-example.sh: line 41: 10556 Abort trap: 6           ./fasttext predict "${RESULTDIR}/dbpedia.bin"
+      "${DATADIR}/dbpedia.test" > "${RESULTDIR}/dbpedia.test.predict"'
+    study: fasttext-dbpedia
+  not_checked:
+  - 'classification-example.sh downloads DBpedia from a Google Drive link that now returns a 2.4 KB HTML
+    page instead of the archive (tar: Unrecognized archive format), so fasttext was trained on an empty
+    file and aborted. The script has no other source for the data.'
+- slug: cleanrl-ppo-cartpole
+  title: 'CleanRL: PPO on CartPole-v1'
+  area: reinforcement learning
+  arxiv: '2111.08819'
+  repo: vwxyzjn/cleanrl
+  commit: fe8d8a03c41a7ef5b523e2e354bd01c363e786bb
+  python: '3.10'
+  device: cpu
+  env:
+    install_project: true
+  command: python cleanrl/ppo.py --env-id CartPole-v1 --seed {seed} --no-cuda --no-track
+  seeds:
+  - 1
+  - 2
+  - 3
+  timeout: 900
+  metric:
+    name: episodic_return
+  claim:
+    source: manual
+    metric: episodic return
+    value: 490.04
+    where: docs/rl-algorithms/ppo.md:111, table of average episodic returns for ppo.py
+    text: '| CartPole-v1      | 490.04 ± 6.12     |497.54 ± 4.02  |'
+    pm: 6.12
+  tolerance:
+    rel: 0.05
+    why: CartPole returns are capped at 500 and a single episode is noisy; the docs' 490.04 ± 6.12 is
+      an average over seeds and the last episodes.
+  not_checked:
+  - The docs report a smoothed average return over 3 seeds; this compares the return of the last finished
+    training episode of each of 3 seeds, a noisier quantity.
+  vetted:
+    verdict: reproduced
+    label: REPRODUCED
+    headline: 'Reproduced: episodic return claimed 490.04, measured 500 (mean of 3 runs), 9.96 away, within
+      the tolerance of ±24.502.'
+    date: '2026-10-23'
+    paper_repro: 0.2.0
+    host: Apple M4, macOS 26.2
+    python: 3.10.21
+    key_packages:
+      torch: 2.4.1
+      numpy: 2.2.6
+      networkx: 3.4.2
+      gymnasium: 0.29.1
+    seeds:
+    - 1
+    - 2
+    - 3
+    run_wall_seconds: 105.0
+    wall_seconds: 110.0
+    measured: 500.0
+    values:
+    - 500.0
+    - 500.0
+    - 500.0
+    std: 0.0
+    study: cleanrl-ppo-cartpole
+- slug: ngboost-yacht
+  title: 'NGBoost: Natural Gradient Boosting for Probabilistic Prediction, UCI Yacht'
+  area: tabular
+  arxiv: '1910.03225'
+  repo: stanfordmlgroup/ngboost
+  commit: d03c7a126ff1b8d81c722d3f46a3d3660729ff34
+  python: '3.8'
+  device: cpu
+  env:
+    no_deps_file: true
+    install_project: true
+    extra:
+    - pandas
+  command: python -m examples.experiments.regression_exp --dataset=yacht --score=MLE --natural
+  timeout: 900
+  metric:
+    name: ngb
+    select: last
+  claim:
+    source: paper
+    table: Table 1
+    row: Yacht
+    column: NGBoost
+    value: 0.2
+    metric: NLL
+    where: 'arXiv:1910.03225, page 7, Table 1, row Yacht, column NGBoost: 0.20 ± 0.26'
+    text: Yacht 308 0.20 ± 0.26 ...
+    pm: 0.26
+  not_checked:
+  - The script's last line is `== RMSE GBM=... NGB=..., NLL NGB=<mean> +/ <std>`; the value compared is
+    the last `NGB=`, which is the mean test NLL over the 20 splits.
+  - The 20 train/test splits are seeded (np.random.seed(1)) but the inner validation split is not, so
+    reruns can differ slightly.
+  - The NLL spread over the 20 splits is large (the script prints the std next to the mean); a few splits
+    with a very poor NLL pull the mean up. Library versions are 2026 releases within setup.py's ranges,
+    not the 2019 pins.
+  deviations:
+  - 'Pinned to d03c7a1 (2020-08-26), the last commit before ''clean up in examples folder'' (f9fc18f)
+    removed the script''s imports of Normal and MLE; at HEAD (6aadc1f) the script stops with NameError:
+    name ''Normal'' is not defined (seen in a run on this machine).'
+  - requirements.txt pins numpy 1.17.2, scipy 1.3.1 and scikit-learn 0.21.3, which have no wheels for
+    this machine; the ranges in setup.py (numpy>=1.17.2, scipy>=1.3.1, scikit-learn>=0.21.3, ...) were
+    installed instead, on Python 3.8, plus pandas, which the script imports.
+  vetted:
+    verdict: not_reproduced
+    label: NOT REPRODUCED
+    headline: 'Not reproduced: NLL claimed 0.20 ± 0.26 (treated as -0.06 to 0.46), measured 2.1153, 1.6553
+      away, beyond the close band of ±0.015.'
+    date: '2026-10-23'
+    paper_repro: 0.2.0
+    host: Apple M4, macOS 26.2
+    python: 3.8.20
+    key_packages:
+      numpy: 1.24.4
+      scipy: 1.10.1
+      scikit-learn: 1.3.2
+    seeds:
+    - null
+    run_wall_seconds: 216.3
+    wall_seconds: 219.7
+    measured: 2.1153
+    values:
+    - 2.1153
+    study: ngboost-yacht
