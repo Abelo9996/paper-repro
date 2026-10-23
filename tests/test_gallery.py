@@ -40,7 +40,7 @@ def test_shipped_gallery_is_valid_and_pinned():
 
 
 def test_no_dashes_in_gallery_text():
-    assert not re.search("[–—]", GALLERY_FILE.read_text(encoding="utf-8"))
+    assert not re.search("[\u2013\u2014]", GALLERY_FILE.read_text(encoding="utf-8"))
 
 
 def test_valid_recipe():
