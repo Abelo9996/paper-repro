@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+Point it at a paper, get a verdict you can post.
+
+### Added
+
+- `paper-repro repro <slug | arXiv id | repo>` (MCP `repro`): inspect, paper, env, run,
+  metrics, compare, report and verify in one command, ending in the verdict, `report.md` and a
+  card. A gallery slug uses its pinned recipe and needs no authoring. An arXiv id is resolved to
+  the official code first (links on the arXiv page, then link annotations and text in the PDF;
+  GitHub search only as a fallback, labeled as not stated by the authors). Without a recipe it
+  stops with COULD NOT RUN and the reason, or runs `--command` against `--claim`.
+- A gallery of 12 papers vetted on an Apple M4, CPU only (`paper-repro gallery`, MCP
+  `list_gallery`, [docs/gallery.md](docs/gallery.md)): 6 reproduced, 1 partial, 1 not
+  reproduced, 4 could not run. `scripts/vet_gallery.py` writes each result from a recorded run;
+  `scripts/gallery_docs.py` renders the docs page and the README table.
+- `paper-repro card` (MCP `render_card`, and automatically at the end of `repro`): a 1200x630
+  PNG and SVG with the paper, repo@commit, claim against the measured value, verdict, machine,
+  wall time and the command to rerun it, plus a shields.io badge snippet. New dependency:
+  Pillow.
+- Verdict labels: close is shown as PARTIAL; a number from a command the agent wrote is
+  REIMPLEMENTED (numbers match, close or differ) and never counts or shows as a reproduction.
+  `run --authored` (MCP `authored=true`) marks such runs, and inline `python -c` code or
+  scripts git does not track or that were modified are detected automatically.
+- COULD NOT RUN carries a reason (GPU required, data unavailable, dependencies do not install,
+  no command, no metric printed, time limit, run failed), read from the whole stderr of the
+  failing step or given with `compare --reason`.
+- `metrics` reads `key=value` and `key<TAB>value` lines outside the metric vocabulary
+  (`episodic_return=[500.]`, fastText's `P@1	0.986`).
+
+### Fixed
+
+- The paper-table reader read the MNIST row of the MNIST-1D paper's Table 1 into the header
+  (its `> 99` cells were not recognized), so every MNIST-1D claim got the column name
+  `Logistic regression 94 ± 0.5` and still said high confidence. Bounds and approximations
+  (`> 99`, `~ 30 ± 10`) are now grid cells, and every cell is cross-checked: a value-like number
+  in its column header or row label, or a number joined onto the row label under a header of its
+  own, drops it to low confidence, and the claim carries the raw table neighborhood (header
+  lines and nearby rows), which the report shows. The table is in the regression set as split
+  `audit`: 10 of 10 cells correct.
+
 ## 0.1.3
 
 ### Fixed

@@ -123,3 +123,12 @@ def test_recipe_rejects_ad_hoc_overrides(tmp_path, monkeypatch, good_repo):
     write_gallery(tmp_path, monkeypatch, [recipe(good_repo)])
     with pytest.raises(Exception, match="has a gallery recipe"):
         repro("tiny-classifier", command="python other.py")
+
+
+def test_colab_nvidia_smi_cell_is_not_gpu_only(tmp_path, monkeypatch):
+    repo = make_repo(tmp_path / "nb", claimed="0.9", actual=0.9, git=False)
+    (repo / "demo.ipynb").write_text('{"cells": [{"source": ["!nvidia-smi"]}]}')
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    write_gallery(tmp_path, monkeypatch, [])
+    out = repro(str(repo), make_card=False)
+    assert out["label"] == "COULD NOT RUN (no command that produces the number)"

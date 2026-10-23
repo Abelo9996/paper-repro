@@ -50,6 +50,7 @@ download time of PyTorch and friends.
 - Per run: 82.1, 82.9, 83.1 (seeds [0, 1, 2]).
 - Vetted 2026-10-23 with paper-repro 0.2.0 on Apple M4, macOS 26.2, Python 3.12.13, torch 2.14.1, numpy 2.5.4, scipy 1.18.1, networkx 3.7. Runs took 11s, 13s end to end (environment from the uv cache).
 - Not checked: The pygcn README says it is not intended to reproduce the paper's results: it trains on the first 140 nodes in file order, not the paper's split of 20 labels per class. The paper's own code is tkipf/gcn (TensorFlow 1).
+- Not checked: The runs are not deterministic on this CPU even with fixed seeds: three repro runs of seeds 0, 1, 2 on this machine gave means of 82.57, 82.7 (the vetted run) and 83.07; each was PARTIAL.
 - Rerun: `uvx paper-repro repro pygcn-cora`
 
 ## gcn-tf-cora

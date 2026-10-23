@@ -1,33 +1,106 @@
 # paper-repro
 
-Point your agent at a paper's code; it gets it running and tells you whether the headline number reproduces, with the evidence.
+Point your agent at a paper. It reruns the claim and gives you a verdict with receipts, or tells
+you exactly why it couldn't.
 
 ```bash
-uvx paper-repro setup --yes     # register the MCP server and skill with Claude Code, Codex, Cursor
+uvx paper-repro repro 2011.14439        # an arXiv id, a gallery slug, or a GitHub repo
 ```
 
-Then start a new agent session and ask:
+That one command finds the paper's official code, pins the commit, builds the environment, runs
+the authors' own command, reads the number, compares it with the paper's table cell, writes a
+hash-chained evidence log and a report, and renders a card. Real output on an Apple M4 laptop,
+CPU only (paper-repro 0.2.0, trimmed):
 
-> Does karpathy/nanoGPT actually reproduce the loss of 1.88 its README claims for the small CPU
-> Shakespeare run? I'm on a MacBook, CPU only.
-
-No agent handy? See what it finds in a repo, in a few seconds, without installing anything:
-
-```bash
-uvx paper-repro inspect karpathy/nanoGPT
+```text
+$ uvx paper-repro repro 2011.14439
+resolve  arXiv:2011.14439: looking for the official code (arXiv page, then the PDF)
+         Scaling Down Deep Learning with MNIST-1D
+         -> greydanus/mnist1d (linked in the paper)
+            paper page 1 (link): https://github.com/greydanus/mnist1d/blob/master/notebooks/building-mnist1d.ipynb
+inspect  greydanus/mnist1d @ e2f536f (gallery recipe mnist1d-logistic)
+paper    arXiv:2011.14439: 13 numbers read
+claim    p7: accuracy = 32 ± 1% [MNIST-1D (shuffled) | Logistic regression] (arXiv:2011.14439, page 2, Table 1)
+env      building with uv (python 3.12)
+         e1 ok: python 3.12.13, 54 packages
+setup    r1: mkdir -p ../nbrun/figures && ln -sfn ../repo ../nbrun/mnist1d -> exit 0 in 0.0s
+run      r2: exit 0 in 2m 43s, peak memory 498.8 MB
+metrics  m1: test_accuracy last 31.6 (48 values)
+verdict  REPRODUCED
+         Reproduced: accuracy claimed 32% ± 1 (treated as 31 to 33), measured 31.6%, inside the claimed range, within the tolerance of ±1.
+verify   ok: 12 hash-chained entries, head ef88aa48176a5ab3
+time: 163s in runs, 167s end to end
+badge for a README: [![paper-repro: REPRODUCED](https://img.shields.io/badge/paper--repro-REPRODUCED%2031.6%25%20vs%2032%20%C2%B1%201%25-1f7a3a)](https://github.com/Abelo9996/paper-repro/blob/main/docs/gallery.md#mnist1d-logistic)
 ```
 
-![paper-repro inspect and paper on tkipf/pygcn](https://raw.githubusercontent.com/Abelo9996/paper-repro/main/docs/demo.gif)
+The run is the paper's own notebook, the one its Table 1 links to, executed unchanged. The card
+it wrote (`card.png` and `card.svg`, 1200x630):
 
-(A real recording: `inspect` finds no number in the pygcn README but a linked arXiv paper, and
-`paper` pulls the results table out of it.)
+![paper-repro verdict card for MNIST-1D](https://raw.githubusercontent.com/Abelo9996/paper-repro/main/docs/card-mnist1d-logistic.png)
+
+Anyone can check it with the command on the card. A repo owner can paste the badge line into
+their README.
+
+## Verdicts
+
+| Verdict | Meaning |
+|---|---|
+| **REPRODUCED** | The repo's own command produced a number within tolerance of the claim. |
+| **PARTIAL** | Outside the tolerance but inside the close band (3x the tolerance by default). |
+| **NOT REPRODUCED** | Further off than that. |
+| **REIMPLEMENTED** (numbers match, close or differ) | The number came from a command or script the agent wrote, not one the repo ships. Inline `python -c` and untracked or modified scripts are detected automatically. Never shown as REPRODUCED. |
+| **INCONCLUSIVE** (reduced-scale smoke check, shortened run) | Only a cut-down run was made; it cannot confirm or refute the claim. |
+| **COULD NOT RUN** (GPU required, data unavailable, dependencies do not install, ...) | Nothing was measured, and the reason is read from the step that failed. |
+
+## Gallery
+
+Papers with a pinned recipe (commit, Python, environment, command, seeds, metric, claim), so
+`paper-repro repro <slug>` needs no authoring. Each was run here on an Apple M4 (macOS 26.2,
+CPU only), and every number below comes from that recorded run. Failures stay in. Details,
+versions and deviations for each: [docs/gallery.md](docs/gallery.md).
+
+<!-- gallery:start -->
+| Paper | Area | Claim | Measured | Verdict | Runs | Slug |
+|---|---|---|---|---|---|---|
+| nanoGPT | language modeling | 1.88 | 1.8857 | **REPRODUCED** | 34s | [`nanogpt-shakespeare-char`](docs/gallery.md#nanogpt-shakespeare-char) |
+| Semi-Supervised Classification with Graph Convolutional Networks (PyTorch code) | graph nets | 81.5% | 82.7% (mean of 3, std 0.53) | **PARTIAL** | 11s | [`pygcn-cora`](docs/gallery.md#pygcn-cora) |
+| Semi-Supervised Classification with Graph Convolutional Networks (official TensorFlow code) | graph nets | 81.5% | not measured | **COULD NOT RUN (dependencies do not install)** | none | [`gcn-tf-cora`](docs/gallery.md#gcn-tf-cora) |
+| Simplifying Graph Convolutional Networks | graph nets | 81% | 81.033% (mean of 3, std 0.058) | **REPRODUCED** | 20s | [`sgc-cora`](docs/gallery.md#sgc-cora) |
+| Deep Graph Infomax | graph nets | 82.3 ± 0.6% | not measured | **COULD NOT RUN (GPU required)** | 42s | [`dgi-cora`](docs/gallery.md#dgi-cora) |
+| Simple and Deep Graph Convolutional Networks (GCNII) | graph nets | 85.5% | not measured | **COULD NOT RUN (GPU required)** | 2s | [`gcnii-cora`](docs/gallery.md#gcnii-cora) |
+| Hamiltonian Neural Networks: ideal mass-spring task | physics-informed learning | 0.036 ± 0.002 | 0.037961 (mean of 3, std 0.0022) | **REPRODUCED** | 55s | [`hnn-mass-spring`](docs/gallery.md#hnn-mass-spring) |
+| Hamiltonian Neural Networks: ideal pendulum task | physics-informed learning | 0.036 ± 0.002 | 0.036489 (mean of 3, std 0.00083) | **REPRODUCED** | 26s | [`hnn-pendulum`](docs/gallery.md#hnn-pendulum) |
+| Scaling Down Deep Learning with MNIST-1D | classic vision | 32 ± 1% | 31.6% | **REPRODUCED** | 2m 46s | [`mnist1d-logistic`](docs/gallery.md#mnist1d-logistic) |
+| Bag of Tricks for Efficient Text Classification (fastText) | NLP text classification | 98.6% | not measured | **COULD NOT RUN (data unavailable)** | 6s | [`fasttext-dbpedia`](docs/gallery.md#fasttext-dbpedia) |
+| CleanRL: PPO on CartPole-v1 | reinforcement learning | 490.04 ± 6.12 | 500 (mean of 3) | **REPRODUCED** | 1m 45s | [`cleanrl-ppo-cartpole`](docs/gallery.md#cleanrl-ppo-cartpole) |
+| NGBoost | tabular | 0.2 ± 0.26 | 2.1153 | **NOT REPRODUCED** | 3m 36s | [`ngboost-yacht`](docs/gallery.md#ngboost-yacht) |
+<!-- gallery:end -->
+
+Seeds, per-run values and the exact errors are in [docs/gallery.md](docs/gallery.md).
+`paper-repro gallery` lists the same table in a terminal.
+
+Three of these were also run with `uvx --from . paper-repro repro <slug>` from a fresh shell
+for 0.2.0: `nanogpt-shakespeare-char` (REPRODUCED, 1.8857 vs 1.88, 35s), `sgc-cora`
+(REPRODUCED, 81.03% vs 81.0%, 9s) and `pygcn-cora` (PARTIAL, 83.07% vs 81.5%, 14s). By arXiv id:
+`1609.02907` resolves to tkipf/gcn, the code the GCN paper links ("Code to reproduce our
+experiments is available at https://github.com/tkipf/gcn"), and ends in COULD NOT RUN because
+`tensorflow==1.15.4` has no wheel for this machine; `2010.11929` (ViT) resolves to
+google-research/vision_transformer from the arXiv comments and, with no recipe, ends in COULD NOT
+RUN (no command that produces the number) after listing the README's commands. Times assume a
+warm uv cache.
+
+A paper not in the gallery still works step by step, by your agent or by hand (below). Without
+a recipe, `repro` gets as far as it can on its own and stops with the reason, or runs a command
+you give it: `paper-repro repro owner/repo --command "python train.py" --claim c3 --metric
+accuracy` (add `--authored` if you wrote that command).
 
 Papers with Code went offline on 24 July 2025, taking its 79,817 paper-to-code links with it
 ([shutdown record](https://www.codesota.com/papers-with-code/shutdown)). There's no common place
-that tracks whether a paper's released code actually reproduces the numbers in the paper. Research benchmarks for this exist (CORE-Bench, PaperBench), but they score agents,
-not papers. paper-repro is the user-facing half: it gives a coding agent reliable operations to
-clone a repo, build its environment, run it, pull numbers out of the logs and compare them with
-the claim (from the README or from the paper itself), and it writes everything down so a person
+that tracks whether a paper's released code actually reproduces the numbers in the paper.
+Research benchmarks for this exist (CORE-Bench, PaperBench), but they score agents, not papers.
+paper-repro is the user-facing half: it gives a coding agent reliable operations to clone a
+repo, build its environment, run it, pull numbers out of the logs and compare them with the
+claim (from the README or from the paper itself), and it writes everything down so a person
 can check the verdict without trusting the agent.
 
 ## Use it with your agent
@@ -124,8 +197,10 @@ Cursor) decides what to run; paper-repro does it the same way every time and kee
 | `env` | Creates an isolated virtualenv per study and installs the repo's own dependency file with pins as written. Conda `environment.yml` files are translated to pip. `--unpin`, `--extra`, `--from-readme` and a different Python are allowed but recorded as deviations. Writes `lock.txt` from `uv pip freeze`. On failure, records the exact error. | `uv venv`, `uv pip` |
 | `run` | Runs one shell command from the repo root inside that env. Captures stdout and stderr to files with SHA-256, exit code, wall time, CPU time, peak memory, every file created or modified, and a copy of small result files as they were when the run ended. Timeout kills the whole process tree. Each run is labeled `full`, `shortened` (needs a note saying what was cut), `smoke` or `setup`. | your shell, POSIX rlimits |
 | `metrics` | Extracts values like `accuracy: 0.913`, `acc=91.3%`, `F1 81.2`, `val loss 1.8857`, `Accuracy: 9897/10000`, plus JSON, JSON lines and CSV results, each with its source file, line and text. Select one with `m1:val_loss:last`, or one per run with `m1:val_loss:last@each`. | |
-| `compare` | Puts measured values next to the claim and gives one of five verdicts: **reproduced**, **close**, **not reproduced**, **inconclusive** (any value came from a smoke or shortened run), **could not run**. Handles percent versus fraction, ranges, `±`, repeated runs (mean, std, min, max) and the rounding of the stated value. Default tolerance is 1% relative, close band 3x that; pass your own with a reason. A shortened run or a hand-typed value never counts as a reproduction. Comparing a claim again supersedes the earlier verdict, which stays in the report. | |
+| `compare` | Puts measured values next to the claim and gives a verdict: **reproduced**, **close** (shown as PARTIAL), **not reproduced**, **reimplemented** (a value came from an agent-written command), **inconclusive** (any value came from a smoke or shortened run), **could not run** (with a reason). Handles percent versus fraction, ranges, `±`, repeated runs (mean, std, min, max) and the rounding of the stated value. Default tolerance is 1% relative, close band 3x that; pass your own with a reason. A shortened run or a hand-typed value never counts as a reproduction. Comparing a claim again supersedes the earlier verdict, which stays in the report. | |
 | `report` | Writes `report.md` (the shareable artifact) and `report.json` from the evidence log only: repo URL and commit, machine, Python and key package versions, every command with exit code and duration, the claim, measured values with source lines, the reasoning, deviations, and what was not checked. | |
+| `repro` | All of the above in one go, ending in `verify` and a card. Takes a gallery slug (pinned recipe), an arXiv id (resolved to the official repo first) or a repo. Always starts a fresh study. | |
+| `card` | Renders `card.png` and `card.svg` (1200x630) and `badge.md` (a shields.io badge) from `report.json`. | Pillow |
 
 Every step prints a `next:` line (a `next` field in JSON and MCP results) with the usual next
 step, and every step appends to `evidence.jsonl`, a hash-chained log. `paper-repro verify` rechecks the
@@ -258,6 +333,22 @@ error instead of pushing through.
 
 ## What it can't do
 
+- The gallery is 12 papers, vetted on one machine (an Apple M4, CPU only) in October 2026. A
+  verdict there says what happened on that machine with those package versions, nothing more.
+  Some code is not deterministic on CPU even with fixed seeds: three runs of pygcn's seeds 0, 1
+  and 2 here gave means of 82.57, 82.7 and 83.07. Times assume packages are in the uv cache.
+- `repro` without a recipe does not write a command for you. It stops with COULD NOT RUN and
+  the README commands it found; an agent (or you, with `--command`) takes it from there.
+- Finding the code for an arXiv id trusts links: the arXiv page first, then the PDF, ranked by
+  page and by "code is available" wording. A paper that links a baseline's repo more
+  prominently than its own can resolve to the wrong one; the output always shows the link it
+  used. GitHub search is only a fallback and is labeled as not stated by the authors.
+- REIMPLEMENTED is detected from the command line: inline `python -c` code and scripts named in
+  the command that git does not track or that were modified. An unmodified repo script that
+  imports a module the agent added is not caught; pass `--authored` (MCP `authored=true`).
+- GPU-only detection without a recipe looks for `.cuda()` and `"cuda"` devices in Python files
+  with no device check anywhere. It can miss GPU-only code and is not a promise that the rest
+  runs on a CPU.
 - It does not judge whether the code implements the method in the paper. It checks the code's
   output against a stated number, nothing more.
 - No GPU orchestration. On a machine without the GPU the paper used, GPU-only claims end as

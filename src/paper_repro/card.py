@@ -216,8 +216,9 @@ def card_data(study: Study) -> dict[str, Any]:
     if c.get("line"):
         where += f":{c['line']}"
     if c.get("table"):
-        cell = ", ".join(x for x in (c.get("row"), c.get("column")) if x)
-        where += f", {c['table']}" + (f" ({cell})" if cell else "")
+        # The arXiv id is in the card header; the table cell is what a reader needs to find it.
+        cell = " | ".join(x for x in (c.get("row"), c.get("column")) if x)
+        where = f"{c['table']}, p. {c.get('page')}" + (f": {cell}" if cell else "")
     host = rep.get("host") or {}
     os_name = {"Darwin": "macOS"}.get(host.get("os") or "", host.get("os") or "")
     hw = [host.get("cpu") or host.get("machine") or "unknown CPU"]
@@ -299,7 +300,7 @@ def draw(data: dict[str, Any]) -> Canvas:
     cv.text(col2, y + 98, _fit(data["measured_note"], 20, "sans", width / 2), 20, "sans", MUTED)
     # Footer
     cv.rect(x, 520, width, 2, RULE)
-    took = f"runs {_dur(data['run_wall_seconds'])}"
+    took = f"runs {_dur(data['run_wall_seconds'])}" if data["run_wall_seconds"] else "nothing ran"
     if data.get("wall_seconds"):
         took += f", {_dur(data['wall_seconds'])} end to end"
     foot = f"{data['hardware']}  |  {took}"

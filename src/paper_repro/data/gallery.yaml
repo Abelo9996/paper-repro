@@ -78,6 +78,8 @@ papers:
   - 'The pygcn README says it is not intended to reproduce the paper''s results: it trains on the first
     140 nodes in file order, not the paper''s split of 20 labels per class. The paper''s own code is tkipf/gcn
     (TensorFlow 1).'
+  - 'The runs are not deterministic on this CPU even with fixed seeds: three repro runs of seeds 0, 1,
+    2 on this machine gave means of 82.57, 82.7 (the vetted run) and 83.07; each was PARTIAL.'
   vetted:
     verdict: close
     label: PARTIAL

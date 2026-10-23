@@ -23,7 +23,7 @@ from .gallery import find_recipe, load_gallery, recipes_for_repo, repo_key
 from .inspect_repo import inspect_repo
 from .metrics import extract_metrics
 from .paper import scan_paper
-from .report import add_note, write_report
+from .report import _error_gist, add_note, write_report
 from .resolve import arxiv_id, resolve_arxiv
 from .runner import run_command
 from .study import Study, StudyError, slug_for, workspace_root
@@ -84,10 +84,35 @@ def _find_paper_claim(claims: list[dict], spec: dict) -> dict | None:
     return None
 
 
-def _gpu_only(insp: dict) -> bool:
-    """CUDA-specific code with no device check or flag anywhere: it will not run on a CPU."""
+CUDA_CALL_RE = re.compile(r"\.cuda\(|['\"]cuda(?::\d+)?['\"]|torch\.cuda\.\w+Tensor|cupy")
+
+
+def _gpu_only(insp: dict) -> dict | None:
+    """The first line of Python source that moves work to CUDA, when the repo has no device
+    check or flag anywhere: it will not run on a CPU. Notebook lines (`!nvidia-smi` in a Colab
+    cell) and dependency pins do not count; they say where the authors ran it, not that it
+    cannot run elsewhere."""
     gpu = insp.get("gpu") or {}
-    return bool(gpu.get("code")) and not gpu.get("availability_checks")
+    if gpu.get("availability_checks"):
+        return None
+    for line in gpu.get("code") or []:
+        path = line["source"].rsplit(":", 1)[0]
+        if path.endswith(".py") and CUDA_CALL_RE.search(line["text"]):
+            return line
+    return None
+
+
+def _is_result_metric(name: str) -> bool:
+    from .compare import RATIO_METRICS
+    from .util import LOWER_IS_BETTER, metric_base
+
+    base = metric_base(name)
+    words = set(base.split("_"))
+    return bool(
+        base in RATIO_METRICS
+        or base in LOWER_IS_BETTER
+        or words & (RATIO_METRICS | LOWER_IS_BETTER | {"bleu", "rouge", "return", "reward"})
+    )
 
 
 def _host_line(study: Study, recipe: dict | None) -> str:
@@ -148,15 +173,16 @@ def repro(
             "github-search": "GitHub search, NOT stated by the authors",
         }[resolution["method"]]
         say(f"         {resolution.get('title')}")
-        say(f"         -> {repo} ({how}; {resolution['evidence'][:140]})")
+        say(f"         -> {repo} ({how})")
+        say(f"            {resolution['evidence'][:220]}")
         matches = recipes_for_repo(repo, entries)
         recipe = next((r for r in matches if str(r.get("arxiv")) == aid), None) or (
             matches[0] if matches else None
         )
         others = [r for r in entries if str(r.get("arxiv")) == aid and r is not recipe]
-        if others and not recipe:
+        if others:
             say(
-                "         the gallery has a recipe for this paper on another repo: "
+                "         the gallery also has this paper on another repo: "
                 + ", ".join(f"{r['slug']} ({r['repo']})" for r in others)
             )
     elif recipe:
@@ -316,8 +342,12 @@ def repro(
         target_claim = claim_entry
         if target_claim is None:
             st = study.state()
-            table = [c for c in st["claims"].values() if c.get("confidence") == "high"]
-            pool = [c for c in st["claims"].values() if c["id"].startswith("c")] or table
+            # A result metric (accuracy, loss, BLEU, ...), README first, then a paper table cell
+            # read with high confidence; never a setup number like "Resolution 384".
+            result = [c for c in st["claims"].values() if _is_result_metric(c["metric"])]
+            pool = [c for c in result if c["id"].startswith("c")] or [
+                c for c in result if c.get("confidence") == "high"
+            ]
             if not pool:
                 say(
                     f"verdict  NO VERDICT: {text} (and no claimed number was found to attach it to)"
@@ -342,13 +372,13 @@ def repro(
 
     # 3. Feasibility before installing anything, when there is no recipe or command.
     if not recipe and not command:
-        if _gpu_only(insp):
-            gpu = insp["gpu"]
+        cuda_line = _gpu_only(insp)
+        if cuda_line:
             return could_not_run(
                 "gpu_required",
                 None,
-                f"The code calls CUDA directly ({gpu['code'][0]['source']}: "
-                f"`{gpu['code'][0]['text'][:80]}`) and has no device check or flag, so it needs "
+                f"The code calls CUDA directly ({cuda_line['source']}: "
+                f"`{cuda_line['text'][:80]}`) and has no device check or flag, so it needs "
                 "an NVIDIA GPU; there is no CPU path to run.",
             )
         cmds = [c["command"] for c in insp.get("readme_commands") or []]
@@ -380,7 +410,8 @@ def repro(
         return could_not_run(
             "broken_deps",
             e["id"],
-            f"The environment did not build: {f.get('step')} failed (`{f.get('command')}`).",
+            f"The environment did not build: {f.get('step')} failed (`{f.get('command')}`): "
+            f"{_error_gist(f.get('error')) or 'see the report'}",
         )
     lock = e.get("lock") or {}
     say(f"         {e['id']} ok: python {e.get('python')}, {lock.get('packages', '?')} packages")
