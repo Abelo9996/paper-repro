@@ -406,6 +406,21 @@ def render_markdown(rep: dict) -> str:
             )
             L.append("")
             L.append(f"> {c['text']}")
+            hood = c.get("neighborhood")
+            if hood:
+                L.append("")
+                L.append(
+                    "The cell was not read cleanly, so here is the raw table around it as the "
+                    "PDF lays it out (header lines, then the rows above and below; `>` marks the "
+                    f"row the value `{hood.get('cell')}` came from):"
+                )
+                L.append("")
+                L.append("```")
+                L += [f"  {h}" for h in hood.get("header") or []]
+                L.append("  ---")
+                for i, row in enumerate(hood.get("rows") or []):
+                    L.append(("> " if i == hood.get("row_index") else "  ") + row)
+                L.append("```")
         elif c.get("text"):
             L.append(f"The claim, from {where}:")
             L.append("")

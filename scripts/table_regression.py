@@ -84,6 +84,8 @@ def cmd_score(args) -> int:
 def cmd_fixtures(args) -> int:
     out_dir = ROOT / "tests" / "data" / "tables"
     for paper in load_expected():
+        if args.arxiv and paper["arxiv"] not in args.arxiv:
+            continue
         pdf = fetch(paper["arxiv"], args.pdf_dir)
         want = {(t["table"], t["page"]) for t in paper["tables"]}
         pages = {p for _, p in want}
@@ -126,7 +128,11 @@ def main() -> int:
         if name == "score":
             s.add_argument("--reader", choices=["text", "layout"], default="layout")
             s.add_argument("-v", "--verbose", action="store_true")
-            s.add_argument("--split", choices=["dev", "held-out"], help="score one split only")
+            s.add_argument(
+                "--split", choices=["dev", "held-out", "audit"], help="score one split only"
+            )
+        else:
+            s.add_argument("--arxiv", action="append", help="only this paper (repeatable)")
     args = p.parse_args()
     args.pdf_dir.mkdir(parents=True, exist_ok=True)
     return args.func(args)

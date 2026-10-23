@@ -1,5 +1,5 @@
 {
- "note": "Values transcribed by hand from the rendered PDF pages (arxiv.org/pdf/<id>, fetched 2026-10-08). null is an empty or dash cell. Row labels drop numeric citations like [18]. Rows with the same label, or with an empty label continuing the row above, are named 'label (Column value)' using the first setup column that tells them apart. split=dev tables were used while building the reader; split=held-out tables were transcribed before the reader was first run on them.",
+ "note": "Values transcribed by hand from the rendered PDF pages (arxiv.org/pdf/<id>, fetched 2026-10-08). null is an empty or dash cell. Row labels drop numeric citations like [18]. Rows with the same label, or with an empty label continuing the row above, are named 'label (Column value)' using the first setup column that tells them apart. split=dev tables were used while building the reader; split=held-out tables were transcribed before the reader was first run on them. split=audit tables come from a real run that went wrong: 0.1.3 read the MNIST row of the MNIST-1D table (> 99 cells) as part of the header and still said high confidence.",
  "papers": [
   {
    "arxiv": "1706.03762",
@@ -1067,6 +1067,57 @@
      ]
     }
    ]
+  },
+  {
+   "arxiv": "2011.14439",
+   "headline": [
+    [
+     "Table 1",
+     "MNIST-1D",
+     "Logistic regression",
+     32
+    ]
+   ],
+   "tables": [
+    {
+     "table": "Table 1",
+     "page": 2,
+     "columns": [
+      "Logistic regression",
+      "MLP",
+      "CNN",
+      "GRU",
+      "Human expert"
+     ],
+     "rows": [
+      [
+       "MNIST",
+       94,
+       null,
+       null,
+       null,
+       null
+      ],
+      [
+       "MNIST-1D",
+       32,
+       68,
+       94,
+       91,
+       96
+      ],
+      [
+       "MNIST-1D (shuffled)",
+       32,
+       68,
+       56,
+       57,
+       null
+      ]
+     ]
+    }
+   ],
+   "split": "audit"
   }
  ]
 }

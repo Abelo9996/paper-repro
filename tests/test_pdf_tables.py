@@ -131,3 +131,86 @@ def test_page_json_round_trip():
     page = Page.from_json(raw)
     again = page.to_json()
     assert again["words"] == raw["words"] and again["rules"] == raw["rules"]
+
+
+def test_mnist1d_bound_cells_keep_the_mnist_row_out_of_the_header():
+    # 0.1.3 read "MNIST 94 ± 0.5 > 99 ..." as a header line, so every MNIST-1D claim came out as
+    # column "Logistic regression 94 ± 0.5" with high confidence.
+    paper = next(p for p in load_expected() if p["arxiv"] == "2011.14439")
+    claims = _claims(paper)
+    (c,) = _find(claims, "MNIST-1D", "Logistic regression")
+    assert c["value"] == 32 and c["plus_minus"] == 1 and c["confidence"] == "high"
+    (m,) = _find(claims, "MNIST", "Logistic regression")
+    assert m["value"] == 94
+    assert not [x for x in claims if x["row"] == "MNIST" and x["column"] == "MLP"]  # "> 99"
+    assert not [x for x in claims if any(ch.isdigit() for ch in x["column"])]
+
+
+def _page(rows: list[tuple[float, list[tuple[float, float, str]]]]) -> Page:
+    words = [[x0, x1, top, top + 9, 9.0, text] for top, ws in rows for x0, x1, text in ws]
+    return Page.from_json({"page": 1, "width": 600, "height": 800, "words": words})
+
+
+CAPTION = [
+    (50, 75, "Table"),
+    (78, 84, "1:"),
+    (87, 105, "Test"),
+    (108, 145, "accuracy"),
+    (148, 160, "(%)"),
+    (163, 175, "on"),
+    (178, 205, "MNIST"),
+    (208, 222, "and"),
+    (225, 270, "MNIST-1D."),
+]
+
+
+def test_two_column_table_with_a_cell_fused_into_the_row_label():
+    # The MNIST value of the first row sits too close to its label and is read as part of it.
+    page = _page(
+        [
+            (100, CAPTION),
+            (120, [(50, 75, "Model"), (125, 160, "MNIST"), (215, 255, "MNIST-1D")]),
+            (
+                135,
+                [(50, 80, "Logistic"), (83, 122, "regression"), (125, 135, "94"), (230, 240, "32")],
+            ),
+            (150, [(50, 68, "MLP"), (140, 150, "99"), (230, 240, "68")]),
+            (165, [(50, 68, "CNN"), (140, 150, "99"), (230, 240, "94")]),
+        ]
+    )
+    claims = table_claims(read_tables([page]), "test")
+    (c,) = [x for x in claims if x["row"].startswith("Logistic")]
+    assert c["value"] == 32 and c["column"] == "MNIST-1D"
+    assert c["confidence"] == "low"
+    assert any("joined onto the label" in n for n in c["confidence_notes"])
+    hood = c["neighborhood"]
+    assert hood["header"] == ["Model  MNIST  MNIST-1D"]
+    assert hood["rows"][hood["row_index"]].startswith("Logistic regression 94")
+    assert hood["cell"] == "32"
+    # The clean rows are unaffected and carry no neighborhood.
+    (mlp,) = [x for x in claims if x["row"] == "MLP" and x["column"] == "MNIST-1D"]
+    assert mlp["value"] == 68 and mlp["confidence"] != "low" and "neighborhood" not in mlp
+
+
+def test_body_row_read_into_the_header_lowers_confidence():
+    # "99+" is not a number cell, so the MNIST row joins the header and its values end up in the
+    # column names. The reader must not call those claims high confidence.
+    page = _page(
+        [
+            (100, CAPTION),
+            (120, [(50, 80, "Dataset"), (140, 165, "Linear"), (230, 250, "MLP")]),
+            (135, [(50, 75, "MNIST"), (140, 158, "94.1"), (230, 248, "99+")]),
+            (150, [(50, 90, "MNIST-1D"), (140, 158, "32.0"), (230, 248, "68.2")]),
+        ]
+    )
+    claims = table_claims(read_tables([page]), "test")
+    (c,) = [x for x in claims if x["value"] == 32.0]
+    assert c["row"] == "MNIST-1D" and "94.1" in c["column"]
+    assert c["confidence"] == "low"
+    assert any("read as part of the header" in n for n in c["confidence_notes"])
+    assert any("MNIST" in h and "94.1" in h for h in c["neighborhood"]["header"])
+
+
+@pytest.mark.parametrize("text", ["> 99", "< 0.1", "∼ 30 ± 10", "~30", "≥ 90%"])
+def test_parse_cell_bounds_are_not_results(text):
+    assert parse_cell(text) == {"bound": True}

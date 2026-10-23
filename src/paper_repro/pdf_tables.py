@@ -336,6 +336,14 @@ PAIR_RE = re.compile(
     r"^(?P<a>" + NUM_RE + r")\s*(?P<pa>%)?\s*/\s*(?P<b>" + NUM_RE + r")\s*(?P<pb>%)?$"
 )
 COUNT_RE = re.compile(r"^\d{1,3}(?:,\d{3})+$|^\d+(?:\.\d+)?[KMBkmb]$")
+# "> 99", "< 0.1", "~ 30 ± 10": a bound or an approximation is part of the grid, not a result.
+BOUND_RE = re.compile(
+    r"^(?:[<>\u2264\u2265\u223c~\u2248]|<=|>=)\s*"
+    + NUM_RE
+    + r"\s*%?(?:\s*(?:±|\+/-)\s*"
+    + NUM_RE
+    + r"\s*%?)?$"
+)
 DASH_RE = re.compile(r"^[-\u2010-\u2015\u2212]+$|^n/?a$|^N/?A$")
 SCI_CELL_RE = re.compile(r"\d\s*[·×x\*]\s*10\s*\^")
 TRAIL_RE = re.compile(r"\s*(?:\([^()]*\)|\[[^\[\]]*\])\s*$")
@@ -351,6 +359,8 @@ def parse_cell(text: str) -> dict[str, Any] | None:
         return {"sci": True}
     if COUNT_RE.match(t):
         return {"count": True}  # sizes such as 3,327 or 100K: part of the grid, not results
+    if BOUND_RE.match(t):
+        return {"bound": True}
     t = TRAIL_RE.sub("", t)  # "70.3 (7s)": the time in brackets is not part of the result
     t = MARK_RE.sub("", t).strip()  # footnote marks, bold/underline stars
     t = t.replace("^", "")
@@ -398,6 +408,7 @@ class Table:
     columns: list[Column]
     rows: list[dict[str, Any]]
     title: str | None = None
+    header_lines: list[str] = field(default_factory=list)  # raw text above the first body row
     top: float = 0.0  # extent of table and caption on the page, in points
     bottom: float = 0.0
     left: float = 0.0
@@ -634,6 +645,8 @@ def _build(
     for ln in header:
         # Header words are short; a gap wider than ~0.4 em already separates two names.
         ln.segments = _segments(ln.words, ln.size, rules, gap_em=0.4)
+    header_lines = [ln.text for ln in header]
+    header_segs = [sg for ln in header for sg in ln.segments]
 
     # Columns from number cells of body rows.
     cells_per_row = []
@@ -791,6 +804,10 @@ def _build(
         first_num = ln.segments.index(cells[0][0])
         texts = ln.segments[:first_num]
         label = " ".join(s.text for s in texts if ctx_x is None or s.x0 < ctx_x)
+        fused = _fused_label(
+            [w for sg in texts for w in ln.words if sg.x0 <= w.x0 and w.x1 <= sg.x1],
+            header_segs,
+        )
         context = " ".join(s.text for s in texts if ctx_x is not None and s.x0 >= ctx_x)
         out_cells = []
         for s, kind in cells:
@@ -807,6 +824,7 @@ def _build(
                 "cells": out_cells,
                 "text": ln.text,
                 "mid": (ln.top + ln.bottom) / 2,
+                "fused": fused,
             }
         )
     _fill_labels(rows, spanning, rules_h)
@@ -820,7 +838,29 @@ def _build(
         columns=columns,
         rows=rows,
         title=title,
+        header_lines=header_lines,
     )
+
+
+def _fused_label(words: list[Word], header_segs: list[Segment]) -> str | None:
+    """A number at the end of a row label that sits under a header name of its own: a value
+    cell joined onto the label because the gap was narrow ("Logistic regression 94" under the
+    headers "Model" and "MNIST"). Returns the swallowed text, or None."""
+    if len(words) < 2:
+        return None
+    tail: list[Word] = []
+    for w in reversed(words[1:]):
+        if parse_cell(w.text) is None and w.text not in ("±", "+/-", ">", "<", "~", "\u223c"):
+            break
+        tail.insert(0, w)
+    if not tail or not any(parse_cell(w.text) for w in tail):
+        return None
+    x0, x1 = tail[0].x0, tail[-1].x1
+    head_x0 = words[0].x0
+    for sg in header_segs:
+        if sg.x0 > head_x0 + 1 and _overlap(sg.x0, sg.x1, x0, x1) > 0:
+            return " ".join(w.text for w in tail)
+    return None
 
 
 def _fill_labels(rows: list[dict], spanning: list[tuple[float, str]], hrules: list[float]) -> None:
@@ -909,6 +949,11 @@ CAPTION_PAIR_RE = re.compile(
     r"(?<![\w/.])([A-Za-z0-9][\w-]*[A-Za-z][\w-]*)\s*/\s*([A-Za-z0-9][\w-]*[A-Za-z][\w-]*)(?![\w/])"
 )
 CITE_RE = re.compile(r"\s*\[[\d,\s\u2013-]+\]")
+# A decimal, a spread, a bound or a percentage inside a label is a value, not a name
+# ("Logistic regression 94 ± 0.5"). Plain integers are allowed: "ResNet 50", "Depth 40".
+VALUE_IN_LABEL_RE = re.compile(
+    r"(?<![\w.\-])(?:\d+\.\d+(?![\w.])|\d+(?:\.\d+)?\s*%|[<>\u2264\u2265]\s*\d)|±|\+/-"
+)
 
 
 def _metric_for(column: str | None, caption: str, row: str, title: str | None):
@@ -1060,6 +1105,21 @@ def table_claims(tables: list[Table], label: str) -> list[dict[str, Any]]:
                 elif metric_from in ("row", "title"):
                     score -= 0.15
                     reasons.append(f"metric named only in the {metric_from}")
+                if r.get("fused"):
+                    score -= 0.5
+                    reasons.append(
+                        f'row label ends in "{r["fused"]}", which sits under a column header: a '
+                        "neighbouring cell was probably joined onto the label"
+                    )
+                elif VALUE_IN_LABEL_RE.search(row or ""):
+                    score -= 0.5
+                    reasons.append("row label contains a value-like number; check the row")
+                if VALUE_IN_LABEL_RE.search(col_label or ""):
+                    score -= 0.5
+                    reasons.append(
+                        "column header contains a value-like number: a body row may have been "
+                        "read as part of the header"
+                    )
                 values = kind["values"]
                 for n, (value, pct, pm) in enumerate(values):
                     column = col_label
@@ -1100,10 +1160,27 @@ def table_claims(tables: list[Table], label: str) -> list[dict[str, Any]]:
                                 "confidence_score": s,
                                 "confidence_notes": why,
                                 "reader": "layout",
+                                **(
+                                    {"neighborhood": _neighborhood(t, r, c["text"])}
+                                    if _level(s) != "high"
+                                    else {}
+                                ),
                             },
                         )
                     )
     return out
+
+
+def _neighborhood(t: Table, r: dict, cell: str) -> dict[str, Any]:
+    """The raw text around a cell, as the PDF lays it out: the header lines and the rows just
+    above and below, so a reader can check the row and column labels without the PDF."""
+    i = next(k for k, x in enumerate(t.rows) if x is r)
+    return {
+        "header": list(t.header_lines),
+        "rows": [x["text"] for x in t.rows[max(0, i - 1) : i + 2]],
+        "row_index": i - max(0, i - 1),
+        "cell": cell,
+    }
 
 
 def tables_markdown(tables: list[Table], label: str) -> str:

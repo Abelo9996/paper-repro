@@ -56,6 +56,7 @@ def _compact_claim(c: dict) -> dict:
         "confidence",
         "confidence_score",
         "confidence_notes",
+        "neighborhood",
         "text",
     )
     out = _drop_empty({k: c.get(k) for k in keep}) | {"percent": bool(c.get("percent"))}
